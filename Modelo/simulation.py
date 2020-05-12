@@ -23,6 +23,44 @@ class Planta:
 
         # agregar Medidas de Desempeño
 
+        '''
+        Deque de instancias Evento ordenadas por tiempo de ocurrencia.
+        '''
+        self.lista_eventos = deque()
+
+
+        '''
+        Esquema eventos:
+        
+        - 'siguiente_dia'
+          -> Llegadas.generar_llegadas()
+          -> evento_llegada = Llegadas.entregar_lote()
+          -> self.lista_eventos.append(evento_llegada)
+        
+        - 'llegada_camion' (lote)
+          -> Descarga.recibir_lote(lote)
+          -> evento_siguiente_llegada = Llegada.entregar_lote()
+             if evento_siguiente_llegada is not None: 
+                Planta.lista_eventos.append(evento_siguiente_llegada)
+        
+        '''
+
+
+    '''
+    Método que genera instancia de Evento de tipo "siguiente_dia".
+    '''
+    def avanzar_a_siguiente_dia(self):
+        return Evento((self.reloj//24)*24 + 24, None, 'siguiente_dia')
+
+    '''
+    Método que retorna el tiempo de ocurrencia del próximo evento.
+    '''
+    def tiempo_proximo_evento(self):
+        if not self.lista_eventos:
+            raise ValueError('Tratando de retornar tiempo de evento '
+                             'inexistente')
+        return self.lista_eventos[0].tiempo
+
     '''
     Método que resetea las estadísticas de la simulación.
     '''

@@ -16,6 +16,24 @@ clock.t + lote.tiempo_hasta_finalizacion_proceso
 ################################################################################
 
 '''
+Clase que representa un evento que ocurre en la simulación.
+'''
+class Evento:
+    def __init__(self, tiempo, lote, tipo, descarga=None, sorting=None):
+        self.tiempo = tiempo
+        self.lote = lote
+        self.tipo = tipo
+        self.linea_descarga = descarga
+        self.linea_sorting = sorting
+
+    def diccionario_eventos(self):
+        eventos = {
+            'llegada_camion': 1,
+            'termino_descarga': 2,
+            'siguiente_dia': 100
+        }
+
+'''
 Entidad que representa un lote de maíz.
 '''
 class Lote:
@@ -47,12 +65,6 @@ class Linea:
         self.tipo_hibrido = None
         self.lote_actual = None
         self.velocidad = 0  # asignar después; depende si es Descarga o Sorting.
-
-    '''
-    Retorna el tiempo de limpieza correspondiente a cambio de híbrido.
-    '''
-    def tiempo_limpieza_por_hibrido(self):
-        return limpieza_hibrido_descarga()
 
     '''
     Retorna True si la linea está ocupada, False en caso contrario.
@@ -90,6 +102,12 @@ class LineaDescarga(Linea):
         self.velocidad = velocidad_descarga()
         self.tiempo_final_descarga = float('inf')
 
+    '''
+    Retorna el tiempo de limpieza correspondiente a cambio de híbrido.
+    '''
+    def tiempo_limpieza_por_hibrido(self):
+        return limpieza_hibrido_descarga()
+
 
 '''
 Clase que representa una línea de sorting.
@@ -115,10 +133,16 @@ class Llegada:
         self.tiempo_hasta_proxima_llegada = float('inf')
 
     '''
-    Retorna una entidad Lote con los parámetros ingresados.
+    Genera una entidad Lote.
     '''
     def generar_camion(self, tipo, gmo, tiempo_llegada):
         return Lote(tipo, gmo, tiempo_llegada)
+
+    '''
+    Genera un evento de tipo "llegada_camion".
+    '''
+    def generar_evento_llegada(self, lote):
+        return Evento(lote.tiempo_llegada, lote, 'llegada_camion')
 
     '''
     Asigna un deque de tuplas de formato [(tipo, gmo, tiempo_entre_llegadas)] al
@@ -142,16 +166,24 @@ class Llegada:
             return None
 
     '''
-    Representa la llegada de un camión a la planta, y provoca que el camión
-    se ponga a la cola en el proceso de descarga.
+    Representa la llegada de un camión a la planta. Crea la entidad camión y
+    retorna un evento de tipo "llegada_camion".
     '''
-    def entregar_lote(self, descarga):
+    def entregar_lote(self):
         attrs = self.entidad_siguiente
         if not attrs:
-            raise TypeError('Intentando crear una entidad a partir de None')
+            return None
         lote = self.generar_camion(*attrs)
         self.entidad_siguiente = self.proxima_entidad()
-        descarga.recibir_lote(lote)
+        return self.generar_evento_llegada(lote)
+
+
+
+'''
+DESCARGA EN REMODELAMIENTO.
+'''
+
+
 
 
 '''
@@ -181,6 +213,10 @@ class Descarga:
     def recibir_lote(self, lote):
         self.cola.append(lote)
         self.largo_cola += 1
+
+        '''
+        Agregar generación de evento 'termino_descarga'
+        '''
 
     '''
     Retorna el menor tiempo en que una de las líneas termina de descargar.
@@ -271,6 +307,15 @@ class Descarga:
     '''
     def entregar_lote(self, lote, sorting):
         sorting.recibir_lote(lote)
+
+
+
+
+'''
+DESCARGA EN REMODELAMIENTO.
+'''
+
+
 
 
 '''
