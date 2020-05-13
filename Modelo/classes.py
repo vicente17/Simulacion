@@ -1,6 +1,7 @@
 from collections import deque
 from functions import *
 from bisect import insort
+from parameters import *
 
 '''
 Insort es una función que inserta eficientemente (O(n)) un elemento en una
@@ -99,7 +100,7 @@ class LineaDescarga(Linea):
     def __init__(self, gmo):
         super().__init__()
         self.gmo = gmo  # indica si es una línea correspondiente a GMO o No-GMO.
-        self.velocidad = velocidad_descarga()
+        self.velocidad = velocidad_descarga
         self.tiempo_final_descarga = float('inf')
 
     '''
@@ -120,6 +121,13 @@ class LineaSorting(Linea):
         self.velocidad = velocidad_sorting_automatico if \
             automatica else velocidad_sorting_manual
         self.tiempo_final_sorting = float('inf')
+
+class LineaDesgrane(Linea):
+    def __init__(self):
+        self.velocidad = velocidad_desgrane
+
+    def tiempo_limpieza_por_hibrido(self):
+        return tiempo_limpieza_sorting_low
 
 
 ################################################################################
@@ -360,4 +368,60 @@ class Secado:
 Módulo que representa el proceso de desgrane.
 '''
 class Desgrane:
-    pass
+    def __init__(self):
+        self.lineas= self.generar_lineas_desgrane()
+        self.hornos_secado_listo: {} #diccionario {1: { 1: tipo ..} 2: { 1:tipo }}
+        self.hibridos_pasando = {}  # diccionario {num_linea: hibrido
+        self.fin_de_desgrane= deque()
+        self.hornos= deque()
+    '''
+    Creacion de las 2 lineas de desgrane.
+    '''
+    def generar_lineas_desgrane(self):
+        return {1: LineaDesgrane(), 2: LineaDesgrane()}
+    '''
+    Se asigna el sigueinte lote primero se busca uno del mismo tipo, 
+    en segundo lugar se busca el lote de menor tamaño
+    '''
+    def asignar_lote_siguiente(self):
+        contador = 0
+        menor = 0
+        for lote in self.hornos:
+            if lote.tipo in self.hibridos_pasando:
+                linea_correspondiente = self.hibridos_pasando[lote.tipo]
+                return linea_correspondiente, self.hornos.popleft(contador)
+            else:
+                contador += 1
+                if lote.carga < menor:
+                    menor = lote.carga
+                    eleccion_lote = lote
+        if contador == len(self.hornos):
+            return None, self.hornos.remove(eleccion_lote)
+    '''
+    Si se agrega el tiempo de limpieza y se cambia la el hibrido en la linea    
+    '''
+    def comenzar_desgrane(self):
+        lote, n = self.asignar_lote_siguiente()
+        if n is not None:
+            n_linea_asignada = n
+        else:
+            n_linea_asignada = None
+            for num, linea in self.lineas.items():
+                if not linea.ocupada():
+                    n_linea_asignada = num
+                    break
+            if n_linea_asignada is None:
+                raise ValueError('Tratando de comenzar descarga cuando no hay '
+                'líneas desocupadas.')
+        linea = self.lineas[n_linea_asignada]
+        if n is not None:
+            tiempo_limpieza = 0
+        else:
+            tiempo_limpieza = linea.tiempo_limpieza_por_hibrido()
+        lote.tiempo_hasta_fin_proceso = (lote.carga / linea.velocidad) + \
+                                        tiempo_limpieza  # sumar clock.t
+        self.hibridos_pasando[n_linea_asignada] = lote.tipo #Nose si se elimina la otra lines
+        insort_by_index(self.fin_de_desgrane,
+                        (n_linea_asignada,
+                         linea.lote_actual.tiempo_hasta_fin_proceso), 1)
+        ### Falta agregar cosas###

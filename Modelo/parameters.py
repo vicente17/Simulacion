@@ -28,7 +28,12 @@ tiempo_limpieza_descarga_low = 20/60
 tiempo_limpieza_descarga_mid = 30/60
 tiempo_limpieza_descarga_high = 30/60
 
+tiempo_limpieza_sorting_low= 20/60
+tiempo_limpieza_sorting_high= 30/20
+
 velocidad_descarga = 3/60  # horas/tonelada
 
 velocidad_sorting_automatico = 5/60  # horas/tonelada
 velocidad_sorting_manual = 15/60  # horas/tonelada
+
+velocidad_desgrane= 25/60 #horas/tonelada
