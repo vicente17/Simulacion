@@ -128,7 +128,6 @@ Clase que representa cada mmodulo del horno
 class Modulo(Linea):
     def __init__(self,gmo,capacidad):
         super().__init__()
-        self.gmo = gmo
         self.capacidad = capacidad
         self.velocidad = velocidad_secado
 
@@ -366,7 +365,19 @@ class Sorting:
     def entregar_lote(self):
         pass
 
+'''
+Clase que representa un secador con sus respectivos modulos modulos y clases
+'''
+class Secador:
+    def __init__(self,gmo,cantidad,capacidad):
+        self.modulos = generar_modulos(cantidad,capacidad)
+        self.gmo = gmo
 
+    def generar_modulos(self,cantidad,capacidad):
+        for i in range(cantidad):
+            lista=[]
+            lista.append(Modulo(capacidad))
+            return lista
 '''
 Módulo que representa el proceso de secado.
 '''
@@ -375,26 +386,21 @@ class Secado:
         self.secadores =  self.generar_secadores()
 
     ''' 
-    Se crean los 5 secadores con sus respectivo modulos y capacidades
+    Se crean los 5 secadores del secado
     '''
     def generar_secadores(self):
-        lista_1 = secador(False,cantidad_modulos_secador_1
+        secador_1 = Secador(False,cantidad_modulos_secador_1
                           ,capacidad_modulos_secador_1)
-        lista_2 = secador(False, cantidad_modulos_secador_2,
+        secador_2 = Secador(False, cantidad_modulos_secador_2,
                           capacidad_modulos_secador_2)
-        lista_3 = secador(False, cantidad_modulos_secador_3,
+        secador_3 = Secador(False, cantidad_modulos_secador_3,
                           capacidad_modulos_secador_3)
-        lista_4 = secador(True, cantidad_modulos_secador_4,
+        secador_4 = Secador(True, cantidad_modulos_secador_4,
                           capacidad_modulos_secador_4)
-        lista_5 = secador(True, cantidad_modulos_secador_5,
+        secador_5 = Secador(True, cantidad_modulos_secador_5,
                           capacidad_modulos_secador_5)
-        return {1: lista_1, 2: lista_2, 3: lista_3, 4: lista_4, 5: lista_5}
-
-    def secador(self, gmo, cantidad, capacidad):
-        for i in range(cantidad):
-            lista=[]
-            lista.append(Modulo(gmo,capacidad))
-            return lista
+        return {1: secador_1, 2: secador_2, 3: secador_3, 4: secador_4,
+                5: secador_5}
 
 
 '''
