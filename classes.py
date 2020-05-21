@@ -123,20 +123,35 @@ class LineaSorting(Linea):
         self.tiempo_final_sorting = float('inf')
 
 '''
-Clase que representa cada mmodulo del horno
+Clase que representa cada modulo del horno
 '''
+
 class Modulo(Linea):
     def __init__(self,gmo,capacidad):
         super().__init__()
         self.capacidad = capacidad
         self.velocidad = velocidad_secado
+        self.hibridos = []
+        self.iniciado = False
+
+    '''
+    Funcion que calcula el tiempo de secado de un conjunto de hibridos
+    Supuesto : La humedad inicial del secado es el promedio de los hibridos que lo componen.
+    '''
+
+    def tiempo_secado_por_hibrido(self):
+        humedad=0
+        for hibrido in self.hibridos:
+            humedad += hibrido.humedad
+        humedad = humedad/len(self.hibridos)
+        return (humedad-humedad_final_secado)/velocidad_secado
 
 class LineaDesgrane(Linea):
     def __init__(self):
         self.velocidad = velocidad_desgrane
 
     def tiempo_limpieza_por_hibrido(self):
-        return tiempo_limpieza_sorting_low
+        return limpieza_hibrido_desgrane()
 
 
 ################################################################################
@@ -375,9 +390,9 @@ class Secador:
 
     def generar_modulos(self,cantidad,capacidad):
         for i in range(cantidad):
-            lista=[]
-            lista.append(Modulo(capacidad))
-            return lista
+            modulos = {}
+            modulos[i] = Modulo(capacidad)
+        return modulos
 '''
 Módulo que representa el proceso de secado.
 '''
@@ -401,8 +416,6 @@ class Secado:
                           capacidad_modulos_secador_5)
         return {1: secador_1, 2: secador_2, 3: secador_3, 4: secador_4,
                 5: secador_5}
-
-
 '''
 Módulo que representa el proceso de desgrane.
 '''

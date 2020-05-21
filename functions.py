@@ -78,6 +78,9 @@ def limpieza_hibrido_descarga():
                                 tiempo_limpieza_descarga_mid,
                                 tiempo_limpieza_descarga_high)
 
+def limpieza_hibrido_desgrane():
+    return np.random.uniform(tiempo_limpieza_sorting_low,tiempo_limpieza_sorting_high)
+
 def desired_index(lista, tupla, indice):
     elemento = tupla[indice]
     if lista[0][indice] >= elemento:
