@@ -133,6 +133,7 @@ class Modulo(Linea):
         self.velocidad = velocidad_secado
         self.hibridos = []
         self.iniciado = False
+        self.cargado = False
 
     '''
     Funcion que calcula el tiempo de secado de un conjunto de hibridos
@@ -145,6 +146,15 @@ class Modulo(Linea):
             humedad += hibrido.humedad
         humedad = humedad/len(self.hibridos)
         return (humedad-humedad_final_secado)/velocidad_secado
+
+    def agregar_hibrido(self,hibrido):
+        self.hibridos.append(hibrido)
+
+    def vaciar(self):
+        self.hibridos = []
+        self.iniciado = False
+        self.cargado = False
+
 
 class LineaDesgrane(Linea):
     def __init__(self):
