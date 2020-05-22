@@ -409,6 +409,7 @@ Módulo que representa el proceso de secado.
 class Secado:
     def __init__(self):
         self.secadores =  self.generar_secadores()
+        self.lote_siguiente = False
 
     ''' 
     Se crean los 5 secadores del secado
@@ -426,6 +427,25 @@ class Secado:
                           capacidad_modulos_secador_5)
         return {1: secador_1, 2: secador_2, 3: secador_3, 4: secador_4,
                 5: secador_5}
+    '''
+    Se asigna el lote a un modulo, primero se busca algun modulo que tenga el
+    mismo lote, en caso contrario se elige el primero desocupado
+    '''
+    def asignar_lote_siguiente(self):
+        if self.lote_siguiente:
+            for numero, secador in self.secadores.items():
+                if secador.gmo == self.lote_siguiente.gmo:
+                    for numero,modulo in self.secador.modulos.items():
+                        if modulo.lote_actual == self.lote_siguiente.tipo and not modulo.iniciado:
+                            self.modulo.hibridos.append(self.lote_siguiente)
+                            break
+            for numero, secador in self.secadores.items():
+                if secador.gmo == self.lote_siguiente.gmo:
+                    for numero, modulo in self.secador.modulos.items():
+                        if not modulo.lote_actual:
+                            self.modulo.hibridos.append(self.lote_siguiente)
+                            break
+            print('NO HAY MODULO DISPONIBLE')
 '''
 Módulo que representa el proceso de desgrane.
 '''
