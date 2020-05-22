@@ -50,4 +50,6 @@ capacidad_modulos_secador_4 = 2280 #m^3
 cantidad_modulos_secador_5 = 24
 capacidad_modulos_secador_5 = 2280 #m^3
 
+toneledas_cierre_modulo = 30
+horas_cierre_modulo = 5
 humedad_final_secado= 12,5 #%

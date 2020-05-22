@@ -134,6 +134,8 @@ class Modulo(Linea):
         self.hibridos = []
         self.iniciado = False
         self.cargado = False
+        self.humedad=0
+        self.tiempo_inicio_carga = 0
 
     '''
     Funcion que calcula el tiempo de secado de un conjunto de hibridos
@@ -141,11 +143,13 @@ class Modulo(Linea):
     '''
 
     def tiempo_secado_por_hibrido(self):
-        humedad=0
+        self.humedad_modulo()
+        return (self.humedad-humedad_final_secado)/velocidad_secado
+
+    def humedad_modulo(self):
         for hibrido in self.hibridos:
-            humedad += hibrido.humedad
-        humedad = humedad/len(self.hibridos)
-        return (humedad-humedad_final_secado)/velocidad_secado
+            self.humedad += hibrido.humedad
+        self.humedad = self.humedad/len(self.hibridos)
 
     def agregar_hibrido(self,hibrido):
         self.hibridos.append(hibrido)
@@ -155,6 +159,11 @@ class Modulo(Linea):
         self.iniciado = False
         self.cargado = False
 
+    def iniciar_secado(self):
+        self.humedad_modulo()
+        if self.humedad >= self.capacidad - toneladas_cierre_modulo or \
+                self.tiempo_inicio_carga >= horas_cierrre_modulo:
+            self.iniciado = True
 
 class LineaDesgrane(Linea):
     def __init__(self):
@@ -403,6 +412,7 @@ class Secador:
             modulos = {}
             modulos[i] = Modulo(capacidad)
         return modulos
+
 '''
 Módulo que representa el proceso de secado.
 '''
@@ -437,15 +447,18 @@ class Secado:
                 if secador.gmo == self.lote_siguiente.gmo:
                     for numero,modulo in self.secador.modulos.items():
                         if modulo.lote_actual == self.lote_siguiente.tipo and not modulo.iniciado:
-                            self.modulo.hibridos.append(self.lote_siguiente)
+                            self.modulo.agregar_hibrido(self.lote_siguiente)
                             break
             for numero, secador in self.secadores.items():
                 if secador.gmo == self.lote_siguiente.gmo:
                     for numero, modulo in self.secador.modulos.items():
                         if not modulo.lote_actual:
-                            self.modulo.hibridos.append(self.lote_siguiente)
+                            self.modulo.agregar_hibrido(self.lote_siguiente)
                             break
             print('NO HAY MODULO DISPONIBLE')
+
+
+
 '''
 Módulo que representa el proceso de desgrane.
 '''
