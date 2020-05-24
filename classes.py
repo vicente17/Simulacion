@@ -110,6 +110,15 @@ class LineaDescarga(Linea):
         return limpieza_hibrido_descarga()
 
 
+class LineaDesgrane(Linea):
+    def __init__(self):
+        super().__init__()
+        self.velocidad = velocidad_desgrane
+
+    def tiempo_limpieza_por_hibrido(self):
+        return limpieza_hibrido_desgrane()
+
+
 '''
 Clase que representa una línea de sorting.
 SUPUESTO: las líneas de sorting son indeferentes a GMO/No-GMO. Es decir, todas
@@ -122,10 +131,25 @@ class LineaSorting(Linea):
             automatica else velocidad_sorting_manual
         self.tiempo_final_sorting = float('inf')
 
+
+'''
+Clase que representa un secador con sus respectivos modulos modulos y clases
+'''
+class Secador:
+    def __init__(self, gmo, cantidad,capacidad):
+        self.modulos = generar_modulos(cantidad, capacidad)
+        self.gmo = gmo
+
+    def generar_modulos(self, cantidad, capacidad):
+        for i in range(cantidad):
+            modulos = {}
+            modulos[i] = Modulo(capacidad)
+        return modulos
+
+
 '''
 Clase que representa cada modulo del horno
 '''
-
 class Modulo(Linea):
     def __init__(self,gmo,capacidad):
         super().__init__()
@@ -165,12 +189,7 @@ class Modulo(Linea):
                 self.tiempo_inicio_carga >= horas_cierrre_modulo:
             self.iniciado = True
 
-class LineaDesgrane(Linea):
-    def __init__(self):
-        self.velocidad = velocidad_desgrane
 
-    def tiempo_limpieza_por_hibrido(self):
-        return limpieza_hibrido_desgrane()
 
 
 ################################################################################
@@ -249,6 +268,8 @@ class Descarga:
         self.lineas_ocupadas = 0
         self.cola_fin_descargas = deque()
 
+        # self.lista_eventos = SortedList(key=lambda x: -x.tiempo)
+
     '''
     Genera 2 líneas de descarga destinadas a GMO, y 2 destinadas a No-GMO. Crea
     un diccionario para poder acceder a ellas.
@@ -268,6 +289,9 @@ class Descarga:
         '''
         Agregar generación de evento 'termino_descarga'
         '''
+
+    def comienzo_descarga(self, lote):
+        pass
 
     '''
     Retorna el menor tiempo en que una de las líneas termina de descargar.
@@ -399,19 +423,8 @@ class Sorting:
     def entregar_lote(self):
         pass
 
-'''
-Clase que representa un secador con sus respectivos modulos modulos y clases
-'''
-class Secador:
-    def __init__(self,gmo,cantidad,capacidad):
-        self.modulos = generar_modulos(cantidad,capacidad)
-        self.gmo = gmo
 
-    def generar_modulos(self,cantidad,capacidad):
-        for i in range(cantidad):
-            modulos = {}
-            modulos[i] = Modulo(capacidad)
-        return modulos
+
 
 '''
 Módulo que representa el proceso de secado.

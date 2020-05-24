@@ -1,6 +1,5 @@
 import numpy as np
 from random import shuffle, sample
-from collections import deque
 from parameters import *
 
 ################################################################################
@@ -79,25 +78,11 @@ def limpieza_hibrido_descarga():
                                 tiempo_limpieza_descarga_high)
 
 def limpieza_hibrido_desgrane():
-    return np.random.uniform(tiempo_limpieza_sorting_low,tiempo_limpieza_sorting_high)
-
-def desired_index(lista, tupla, indice):
-    elemento = tupla[indice]
-    if lista[0][indice] >= elemento:
-        return 0
-    for c in range(len(lista)-1):
-        if lista[c][indice] <= elemento <= lista[c+1][indice]:
-            return c+1
-    return len(lista) + 1
-
-
-def insort_by_index(lista, tupla, indice):
-    index = desired_index(lista, tupla, indice)
-    lista.insert(index, tupla)
+    return np.random.uniform(tiempo_limpieza_sorting_low,
+                             tiempo_limpieza_sorting_high)
 
 
 ################################################################################
 
 if __name__ == '__main__':
-    print('')
-
+    pass

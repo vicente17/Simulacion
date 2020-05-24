@@ -1,11 +1,5 @@
 from classes import *
-
-'''
-Insort es una función que inserta eficientemente (O(n)) un elemento en una
-lista ordenada. Se usa de la forma insort(lista, elemento). Será útil en el
-momento de tener que agregar eventos a una lista de eventos ordenados por tiempo
-de ocurrencia.
-'''
+from sortedcontainers import SortedList
 
 '''
 Representa la planta donde ocurren los procesos. El reloj de simulación se
@@ -24,9 +18,11 @@ class Planta:
         # agregar Medidas de Desempeño
 
         '''
-        Deque de instancias Evento ordenadas por tiempo de ocurrencia.
+        Lista que permanece siempre ordenada decrecientemente según el atributo
+        tiempo de la clase Evento. Para agregar un elemento, lista.add(elem).
+        Para retornar el Evento de menor tiempo, lista.pop().
         '''
-        self.lista_eventos = deque()
+        self.lista_eventos = SortedList(key=lambda x: -x.tiempo)
 
 
         '''
@@ -35,13 +31,16 @@ class Planta:
         - 'siguiente_dia'
           -> Llegadas.generar_llegadas()
           -> evento_llegada = Llegadas.entregar_lote()
-          -> self.lista_eventos.append(evento_llegada)
+          -> self.lista_eventos.add(evento_llegada)
         
         - 'llegada_camion' (lote)
           -> Descarga.recibir_lote(lote)
           -> evento_siguiente_llegada = Llegada.entregar_lote()
              if evento_siguiente_llegada is not None: 
-                Planta.lista_eventos.append(evento_siguiente_llegada)
+                Planta.lista_eventos.add(evento_siguiente_llegada)
+                
+        - 'comienza_descarga' (lote)
+          -> 
         
         '''
 
