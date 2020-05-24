@@ -34,13 +34,46 @@ class Planta:
           -> self.lista_eventos.add(evento_llegada)
         
         - 'llegada_camion' (lote)
-          -> Descarga.recibir_lote(lote)
           -> evento_siguiente_llegada = Llegada.entregar_lote()
              if evento_siguiente_llegada is not None: 
                 Planta.lista_eventos.add(evento_siguiente_llegada)
                 
+          -> Descarga.recibir_lote(lote)
+             -> if Descarga.hay_linea_desocupada():
+                   if Sorting.hay_linea_desocupada():
+                      Descarga.comenzar_descarga()
+                   
         - 'comienza_descarga' (lote)
-          -> 
+          -> generar_evento 'termina_descarga'
+          
+        - 'termina_descarga'
+           -> if Sorting.hay_linea_desocupada():
+                 'comenzar_sorting'
+              else:
+                 desechar_lote
+           -> if Descarga.cola:
+                 comenzar_descarga
+                 
+        - 'comienza_sorting'
+           -> generar evento 'termina_sorting'
+           
+        - 'termina_sorting'
+           -> if Secado.hay_espacio(lote):
+                 Secado.agregar_a_modulo
+                 
+        - 'agregar_a_módulo_secado'
+           -> if módulo está inicialmente vacío:
+                 generar evento 'comienza_secado' (por tiempo de espera)
+                 
+              else:
+                 if módulo cumple capacidad:
+                    'comenzar_secado'
+                    
+        
+                 
+           
+        
+                 
         
         '''
 
