@@ -86,4 +86,9 @@ def limpieza_hibrido_desgrane():
 ################################################################################
 
 if __name__ == '__main__':
-    print(llegadas())
+    np.random.seed(0)
+    l = llegadas()
+    suma = 0
+    for c in l:
+        suma += c['tiempo_entre_llegadas']
+        print(suma)

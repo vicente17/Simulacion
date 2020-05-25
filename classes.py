@@ -1,6 +1,5 @@
 from collections import deque
 from functions import *
-from bisect import insort
 from parameters import *
 
 '''
@@ -26,6 +25,8 @@ class Evento:
         self.tipo = tipo
         self.linea_descarga = descarga
         self.linea_sorting = sorting
+        self.descarga = descarga
+        self.sorting = sorting
 
     def diccionario_eventos(self):
         eventos = {
@@ -38,13 +39,21 @@ class Evento:
 Entidad que representa un lote de maíz.
 '''
 class Lote:
-    def __init__(self, tipo, gmo, tiempo_llegada):
+
+    id_counter = 0
+
+    def __init__(self, tipo, gmo, tiempo_llegada, ):
         self.tipo = tipo
         self.gmo = gmo
         self.__humedad = humedad_lote()
         self.carga = carga_camion()
         self.tiempo_llegada = tiempo_llegada
         self.tiempo_hasta_fin_proceso = float('inf')
+        self.id = self.generate_id()
+
+    def generate_id(self):
+        Lote.id_counter += 1
+        return self.id_counter
 
     @property
     def humedad(self):
@@ -83,7 +92,7 @@ class Linea:
             raise AttributeError('Se le está pidiendo un tiempo de pasada a una'
                                  ' línea desocupada')
         else:
-            return self.lote_actual.carga / self.velocidad
+            return self.lote_actual.carga * self.velocidad
 
     '''
     Desocupa la línea.
@@ -306,7 +315,10 @@ class Descarga:
         for lote in self.cola:
             if lote.tipo in hibridos_pasando:
                 linea_correspondiente = hibridos_pasando[lote.tipo]
-                return self.cola.pop(indice), linea_correspondiente
+                self.cola = list(self.cola)
+                x = self.cola.pop(indice)
+                self.cola = deque(self.cola)
+                return x, linea_correspondiente
             indice += 1
 
         return self.cola.popleft(), None
@@ -324,6 +336,9 @@ class Descarga:
     Comienza la descarga de un camión. Retorna un Evento('termina_descarga').
     '''
     def comenzar_descarga(self, clock):
+        if not len(self.cola):
+            return None
+
         lote, n = self.asignar_lote_siguiente()
         if n is None:
             n = self.asignar_linea_arbitraria()
@@ -336,6 +351,7 @@ class Descarga:
         if lote.tipo != linea.tipo_hibrido:
             tiempo_limpieza += linea.tiempo_limpieza_por_hibrido()
         tiempo_procesamiento = linea.tiempo_en_pasar() + tiempo_limpieza
+        print(f'Tiempo de procesamiento: {tiempo_procesamiento}')
 
         return Evento(clock + tiempo_procesamiento, lote,
                       'termina_descarga', descarga=n)

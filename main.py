@@ -8,4 +8,6 @@ if semilla:
     np.random.seed(0)
 
 planta = Planta()
-planta.simular(cantidad_dias_simulacion * 24)
+#planta.simular(cantidad_dias_simulacion * 24)
+print()
+planta.simular(2 * 24)

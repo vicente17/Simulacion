@@ -1,5 +1,8 @@
 from classes import *
 from sortedcontainers import SortedList
+import sys
+
+
 
 '''
 Representa la planta donde ocurren los procesos. El reloj de simulación se
@@ -112,61 +115,110 @@ class Planta:
 
         while self.reloj < tiempo_simulacion:
 
+            '''
             print('###############')
             for evento in self.lista_eventos:
                 if evento is not None:
                     print(evento.__dict__)
             print('###############')
             print()
+            '''
 
             evento_simulacion = self.lista_eventos.pop()
             self.reloj = evento_simulacion.tiempo
 
-            print(f'Tiempo de simulación: {self.reloj}')
-            print(f'Se ejecuta el evento: {evento_simulacion.tipo}')
+            if self.reloj >= tiempo_simulacion:
+                break
+
+            print(f'T = {self.reloj}.')
+            print(f'EJECUTANDO EVENTO: [{evento_simulacion.tipo}]\n')
 
             if evento_simulacion.tipo == 'siguiente_dia':
+
+                print(f'Generando llegadas del día.')
                 self.llegada.generar_llegadas()
                 evento_llegada = self.llegada.entregar_lote(self.reloj)
                 self.lista_eventos.add(evento_llegada)
 
+                print("Agregando evento [siguiente día] a la lista de eventos.")
+                evento_siguiente_dia = self.avanzar_a_siguiente_dia()
+                print(f'Siguiente día comenzará en T = '
+                      f'{evento_siguiente_dia.tiempo}.')
+                self.lista_eventos.add(evento_siguiente_dia)
+
             if evento_simulacion.tipo == 'llegada_camion':
                 evento_sgte_llegada = self.llegada.entregar_lote(self.reloj)
-                print(evento_sgte_llegada.__dict__)
                 if evento_sgte_llegada is not None:
                     self.lista_eventos.add(evento_sgte_llegada)
+                    id = evento_sgte_llegada.lote.id
+                    print(f'Recibiendo lote número {id}.')
+                    self.descarga.recibir_lote(evento_sgte_llegada.lote)
+                    if self.descarga.lineas_desocupadas():
+                        if self.sorting.lineas_desocupadas():
+                            evento_termina_descarga = \
+                                self.descarga.comenzar_descarga(self.reloj)
+                            print('Agregando evento [comienza descarga] de lote'
+                                  f' {id} a la lista de eventos. Descarga '
+                                  f'terminará en T = '
+                                  f'{evento_termina_descarga.tiempo}.')
+                            self.lista_eventos.add(evento_termina_descarga)
+                else:
+                    print('Llegada es None')
 
             if evento_simulacion.tipo == 'comienza_descarga':
+                print(f'Comenzando descarga de lote número'
+                      f'{evento_simulacion.lote.id} por línea '
+                      f'{evento_simulacion.descarga}.')
                 evento_fin_descarga = self.descarga.comenzar_descarga(self.reloj)
-                print(evento_fin_descarga.__dict__)
-                self.lista_eventos.add(evento_fin_descarga)
+                if evento_fin_descarga is not None:
+                    id = evento_fin_descarga.lote.id
+                    print(f'Agregando evento [terminar descarga] de lote {id} '
+                          'a la lista de eventos. Descarga terminará en T = '
+                          f'{evento_fin_descarga.tiempo}.')
+                    self.lista_eventos.add(evento_fin_descarga)
 
             if evento_simulacion.tipo == 'termina_descarga':
-                lote, n = evento_simulacion.lote, evento_simulacion.llegada
+                lote, n = evento_simulacion.lote, evento_simulacion.descarga
+                print(f'Descarga de lote {lote.id} por línea {n} terminada.')
                 evento_inicio_sorting = self.descarga.terminar_descarga(
                                         lote, n, self.reloj)
+                print(f'Agregando evento [comienza sorting] de lote {lote.id} '
+                      'a la lista de eventos. Sorting comenzará en T = '
+                      f'{evento_inicio_sorting.tiempo}.')
                 self.lista_eventos.add(evento_inicio_sorting)
 
                 if self.descarga.cola:
                     evento = self.descarga.comenzar_descarga(self.reloj)
+                    id = evento.lote.id
+                    print(f'Agregando evento [comienza descarga] de lote {id}'
+                          'a la lista de eventos. Descarga comenzará en T = '
+                          f'{evento.tiempo}.')
                     self.lista_eventos.add(evento)
 
             if evento_simulacion.tipo == 'comienza_sorting':
+
                 if self.sorting.lineas_desocupadas():
                     evento = self.sorting.comenzar_sorting(evento_simulacion.lote,
                                                            self.reloj)
+                    print(f'Comenzando proceso de sorting de lote'
+                          f' {evento.lote.id}.')
+                    print(f'Agregando evento [termina sorting] de lote '
+                          f'{evento.lote.id} a la lista de eventos. Sorting '
+                          f'terminará en T = {evento.tiempo}')
                     self.lista_eventos.add(evento)
                 else:
-                    print('Se desecha lote')
-
+                    print('Se desecha lote por no existir líneas desocupadas en'
+                          ' el área de sorting.')
 
             if evento_simulacion.tipo == 'termina_sorting':
                 self.sorting.terminar_sorting(evento_simulacion.lote,
-                                              evento_simulacion.n,
+                                              evento_simulacion.sorting,
                                               self.reloj)
+                id = evento_simulacion.lote.id
+                print(f'Terminando proceso de sorting de lote {id}')
 
                 # Pasar a secado
 
             print()
-            print('Se termina la iteración.')
+            print('-------------------------')
             print()
