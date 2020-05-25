@@ -48,7 +48,6 @@ class Lote:
         self.__humedad = humedad_lote()
         self.carga = carga_camion()
         self.tiempo_llegada = tiempo_llegada
-        self.tiempo_hasta_fin_proceso = float('inf')
         self.id = self.generate_id()
 
     def generate_id(self):
@@ -92,13 +91,17 @@ class Linea:
             raise AttributeError('Se le está pidiendo un tiempo de pasada a una'
                                  ' línea desocupada')
         else:
-            return self.lote_actual.carga * self.velocidad
+            return self.lote_actual.carga / self.velocidad
 
     '''
     Desocupa la línea.
     '''
     def desocupar(self):
         self.lote_actual = None
+        if isinstance(self, LineaDescarga):
+            print('Desocupando línea de descarga.')
+        elif isinstance(self, LineaSorting):
+            print('Desocupando línea de sorting.')
 
 
 '''
@@ -351,7 +354,6 @@ class Descarga:
         if lote.tipo != linea.tipo_hibrido:
             tiempo_limpieza += linea.tiempo_limpieza_por_hibrido()
         tiempo_procesamiento = linea.tiempo_en_pasar() + tiempo_limpieza
-        print(f'Tiempo de procesamiento: {tiempo_procesamiento}')
 
         return Evento(clock + tiempo_procesamiento, lote,
                       'termina_descarga', descarga=n)

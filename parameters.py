@@ -31,13 +31,13 @@ tiempo_limpieza_descarga_high = 30/60
 tiempo_limpieza_sorting_low = 20/60
 tiempo_limpieza_sorting_high = 30/20
 
-velocidad_descarga = 3/60  # horas/tonelada
+velocidad_descarga = 20  # toneladas/hora
 
-velocidad_sorting_automatico = 5/60  # horas/tonelada
-velocidad_sorting_manual = 15/60  # horas/tonelada
+velocidad_sorting_automatico = 12  # toneladas/hora
+velocidad_sorting_manual = 4  # toneladas/hora
 
 velocidad_secado = 0.5/2  # %/horas
-velocidad_desgrane= 25/60  # horas/tonelada
+velocidad_desgrane= 60/25  # toneladas/hora
 
 cantidad_modulos_secador_1 = 14
 capacidad_modulos_secador_1 = 1300  # m^3

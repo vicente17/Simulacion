@@ -140,30 +140,33 @@ class Planta:
                 evento_llegada = self.llegada.entregar_lote(self.reloj)
                 self.lista_eventos.add(evento_llegada)
 
-                print("Agregando evento [siguiente día] a la lista de eventos.")
                 evento_siguiente_dia = self.avanzar_a_siguiente_dia()
-                print(f'Siguiente día comenzará en T = '
+                print("Agregando evento [siguiente día] a la lista de eventos. "
+                      f'Siguiente día comenzará en T = '
                       f'{evento_siguiente_dia.tiempo}.')
                 self.lista_eventos.add(evento_siguiente_dia)
 
             if evento_simulacion.tipo == 'llegada_camion':
+                lote = evento_simulacion.lote
+                print(f'Llegando Lote(ID = {lote.id}; Carga = {lote.carga:.5f};'
+                      f'Humedad = {lote.humedad}; GMO = {lote.gmo}).')
+                self.descarga.recibir_lote(evento_simulacion.lote)
+
+                if self.descarga.lineas_desocupadas() and \
+                   self.sorting.lineas_desocupadas():
+                    evento_termina_descarga = \
+                        self.descarga.comenzar_descarga(self.reloj)
+                    if evento_termina_descarga is not None:
+                        id_1 = evento_termina_descarga.lote.id
+                        print('Agregando evento [comienza descarga de Lote'
+                              f'({id_1})] a la lista de eventos. Descarga '
+                              f'terminará en T = '
+                              f'{evento_termina_descarga.tiempo}.')
+                        self.lista_eventos.add(evento_termina_descarga)
+
                 evento_sgte_llegada = self.llegada.entregar_lote(self.reloj)
                 if evento_sgte_llegada is not None:
                     self.lista_eventos.add(evento_sgte_llegada)
-                    id = evento_sgte_llegada.lote.id
-                    print(f'Recibiendo lote número {id}.')
-                    self.descarga.recibir_lote(evento_sgte_llegada.lote)
-                    if self.descarga.lineas_desocupadas():
-                        if self.sorting.lineas_desocupadas():
-                            evento_termina_descarga = \
-                                self.descarga.comenzar_descarga(self.reloj)
-                            print('Agregando evento [comienza descarga] de lote'
-                                  f' {id} a la lista de eventos. Descarga '
-                                  f'terminará en T = '
-                                  f'{evento_termina_descarga.tiempo}.')
-                            self.lista_eventos.add(evento_termina_descarga)
-                else:
-                    print('Llegada es None')
 
             if evento_simulacion.tipo == 'comienza_descarga':
                 print(f'Comenzando descarga de lote número'
@@ -172,8 +175,8 @@ class Planta:
                 evento_fin_descarga = self.descarga.comenzar_descarga(self.reloj)
                 if evento_fin_descarga is not None:
                     id = evento_fin_descarga.lote.id
-                    print(f'Agregando evento [terminar descarga] de lote {id} '
-                          'a la lista de eventos. Descarga terminará en T = '
+                    print(f'Agregando evento [terminar descarga] de Lote({id})]'
+                          ' a la lista de eventos. Descarga terminará en T = '
                           f'{evento_fin_descarga.tiempo}.')
                     self.lista_eventos.add(evento_fin_descarga)
 
@@ -182,7 +185,7 @@ class Planta:
                 print(f'Descarga de lote {lote.id} por línea {n} terminada.')
                 evento_inicio_sorting = self.descarga.terminar_descarga(
                                         lote, n, self.reloj)
-                print(f'Agregando evento [comienza sorting] de lote {lote.id} '
+                print(f'Agregando evento [comienza sorting de Lote({lote.id})] '
                       'a la lista de eventos. Sorting comenzará en T = '
                       f'{evento_inicio_sorting.tiempo}.')
                 self.lista_eventos.add(evento_inicio_sorting)
@@ -190,8 +193,8 @@ class Planta:
                 if self.descarga.cola:
                     evento = self.descarga.comenzar_descarga(self.reloj)
                     id = evento.lote.id
-                    print(f'Agregando evento [comienza descarga] de lote {id}'
-                          'a la lista de eventos. Descarga comenzará en T = '
+                    print(f'Agregando evento [comienza descarga de Lote({id})]'
+                          ' a la lista de eventos. Descarga comenzará en T = '
                           f'{evento.tiempo}.')
                     self.lista_eventos.add(evento)
 
@@ -202,13 +205,13 @@ class Planta:
                                                            self.reloj)
                     print(f'Comenzando proceso de sorting de lote'
                           f' {evento.lote.id}.')
-                    print(f'Agregando evento [termina sorting] de lote '
-                          f'{evento.lote.id} a la lista de eventos. Sorting '
+                    print(f'Agregando evento [termina sorting de Lote('
+                          f'{evento.lote.id})] a la lista de eventos. Sorting '
                           f'terminará en T = {evento.tiempo}')
                     self.lista_eventos.add(evento)
                 else:
-                    print('Se desecha lote por no existir líneas desocupadas en'
-                          ' el área de sorting.')
+                    print(f'Se desecha Lote({evento_simulacion.lote.id}) por no'
+                          f' existir líneas desocupadas en el área de sorting.')
 
             if evento_simulacion.tipo == 'termina_sorting':
                 self.sorting.terminar_sorting(evento_simulacion.lote,
@@ -217,7 +220,17 @@ class Planta:
                 id = evento_simulacion.lote.id
                 print(f'Terminando proceso de sorting de lote {id}')
 
-                # Pasar a secado
+                if self.descarga.lineas_desocupadas():
+                    evento_termina_sorting = \
+                        self.descarga.comenzar_descarga(self.reloj)
+                    if evento_termina_sorting is not None:
+                        id_1 = evento_termina_sorting.lote.id
+                        print('Agregando evento [comienza descarga de Lote('
+                              f'{id_1})] a la lista de eventos. Descarga '
+                              f'terminará en T = '
+                              f'{evento_termina_sorting.tiempo}.')
+                        self.lista_eventos.add(evento_termina_sorting)
+
 
             print()
             print('-------------------------')
