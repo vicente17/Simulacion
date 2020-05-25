@@ -60,8 +60,8 @@ def llegadas():
 Función que asigna la humedad inicial a un lote.
 '''
 def humedad_lote():
-    return np.random.randint(humedad_inicial_minima,
-                             humedad_inicial_maxima + 1) / 100
+    return np.random.randint(humedad_inicial_minima * 100,
+                             (humedad_inicial_maxima * 100) + 1) / 100
 
 '''
 Función que asigna un peso en toneladas a un lote.

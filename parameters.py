@@ -6,50 +6,51 @@ Los tiempos y tasas de llegada serán tratados en horas, los pesos serán tratad
 en toneladas.
 '''
 
-cantidad_dias_simulacion = 7
+cantidad_dias_simulacion = 7  # días
 
 duracion_turno = 14  # horas
 
 tasa_llegada = 18/duracion_turno  # llegadas/hora
 
 carga_minima = 10.5  # toneladas
-carga_maxima = 21
+carga_maxima = 21  # toneladas
 
-humedad_inicial_minima= 33
-humedad_inicial_maxima = 35
+humedad_inicial_minima = 0.33
+humedad_inicial_maxima = 0.35
 
-cantidad_total_tipos_hibrido = 120
+cantidad_total_tipos_hibrido = 120  # unidades
 probabilidad_gmo = 0.5
 
-tipos_hibrido_minimo = 6
-tipos_hibrido_maximo = 12
+tipos_hibrido_minimo = 6  # unidades
+tipos_hibrido_maximo = 12  # unidades
 
-tiempo_limpieza_descarga_low = 20/60
-tiempo_limpieza_descarga_mid = 30/60
-tiempo_limpieza_descarga_high = 30/60
+tiempo_limpieza_descarga_low = 20/60  # horas
+tiempo_limpieza_descarga_mid = 30/60  # horas
+tiempo_limpieza_descarga_high = 30/60  # horas
 
-tiempo_limpieza_sorting_low = 20/60
-tiempo_limpieza_sorting_high = 30/20
+tiempo_limpieza_sorting_low = 20/60  # horas
+tiempo_limpieza_sorting_high = 30/20  # horas
 
 velocidad_descarga = 20  # toneladas/hora
 
 velocidad_sorting_automatico = 12  # toneladas/hora
 velocidad_sorting_manual = 4  # toneladas/hora
 
-velocidad_secado = 0.5/2  # %/horas
+velocidad_secado = 0.0025  # unidades/hora
 velocidad_desgrane= 60/25  # toneladas/hora
 
-cantidad_modulos_secador_1 = 14
+cantidad_modulos_secador_1 = 14  # unidades
+cantidad_modulos_secador_2 = 20  # unidades
+cantidad_modulos_secador_3 = 21  # unidades
+cantidad_modulos_secador_4 = 24  # unidades
+cantidad_modulos_secador_5 = 24  # unidades
+
 capacidad_modulos_secador_1 = 1300  # m^3
-cantidad_modulos_secador_2 = 20
 capacidad_modulos_secador_2 = 2000  # m^3
-cantidad_modulos_secador_3 = 21
 capacidad_modulos_secador_3 = 1740  # m^3
-cantidad_modulos_secador_4 = 24
 capacidad_modulos_secador_4 = 2280  # m^3
-cantidad_modulos_secador_5 = 24
 capacidad_modulos_secador_5 = 2280  # m^3
 
-toneledas_cierre_modulo = 30
-horas_cierre_modulo = 5
-humedad_final_secado= 12.5  # %
+toneladas_cierre_modulo = 21  # toneladas
+horas_cierre_modulo = 5  # horas
+humedad_final_secado= 0.125
