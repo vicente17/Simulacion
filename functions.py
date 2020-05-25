@@ -53,7 +53,8 @@ def llegadas():
     ctd = cantidad_hibridos()
     tiempos_llegada = tiempos_llegadas(ctd)
     asignaciones = asignacion_hibridos_gmo(len(tiempos_llegada), ctd)
-    return [(u, v, w) for (u, v), w in zip(asignaciones, tiempos_llegada)]
+    return [{'tipo': u, 'gmo': v, 'tiempo_entre_llegadas': w} for (u, v), w
+            in zip(asignaciones, tiempos_llegada)]
 
 '''
 Función que asigna la humedad inicial a un lote.
@@ -85,4 +86,4 @@ def limpieza_hibrido_desgrane():
 ################################################################################
 
 if __name__ == '__main__':
-    pass
+    print(llegadas())

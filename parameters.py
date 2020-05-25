@@ -28,28 +28,28 @@ tiempo_limpieza_descarga_low = 20/60
 tiempo_limpieza_descarga_mid = 30/60
 tiempo_limpieza_descarga_high = 30/60
 
-tiempo_limpieza_sorting_low= 20/60
-tiempo_limpieza_sorting_high= 30/20
-
+tiempo_limpieza_sorting_low = 20/60
+tiempo_limpieza_sorting_high = 30/20
 
 velocidad_descarga = 3/60  # horas/tonelada
 
 velocidad_sorting_automatico = 5/60  # horas/tonelada
 velocidad_sorting_manual = 15/60  # horas/tonelada
+
 velocidad_secado = 0.5/2  # %/horas
-velocidad_desgrane= 25/60  #horas/tonelada
+velocidad_desgrane= 25/60  # horas/tonelada
 
 cantidad_modulos_secador_1 = 14
-capacidad_modulos_secador_1 = 1300  #m^3
+capacidad_modulos_secador_1 = 1300  # m^3
 cantidad_modulos_secador_2 = 20
-capacidad_modulos_secador_2 = 2000  #m^3
+capacidad_modulos_secador_2 = 2000  # m^3
 cantidad_modulos_secador_3 = 21
-capacidad_modulos_secador_3 = 1740  #m^3
+capacidad_modulos_secador_3 = 1740  # m^3
 cantidad_modulos_secador_4 = 24
-capacidad_modulos_secador_4 = 2280  #m^3
+capacidad_modulos_secador_4 = 2280  # m^3
 cantidad_modulos_secador_5 = 24
-capacidad_modulos_secador_5 = 2280  #m^3
+capacidad_modulos_secador_5 = 2280  # m^3
 
 toneledas_cierre_modulo = 30
 horas_cierre_modulo = 5
-humedad_final_secado= 12.5  #%
+humedad_final_secado= 12.5  # %

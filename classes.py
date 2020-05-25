@@ -41,7 +41,7 @@ class Lote:
     def __init__(self, tipo, gmo, tiempo_llegada):
         self.tipo = tipo
         self.gmo = gmo
-        self.humedad = humedad_lote()
+        self.__humedad = humedad_lote()
         self.carga = carga_camion()
         self.tiempo_llegada = tiempo_llegada
         self.tiempo_hasta_fin_proceso = float('inf')
@@ -83,7 +83,7 @@ class Linea:
             raise AttributeError('Se le está pidiendo un tiempo de pasada a una'
                                  ' línea desocupada')
         else:
-            return self.lote_actual.carga * self.velocidad
+            return self.lote_actual.carga / self.velocidad
 
     '''
     Desocupa la línea.
@@ -121,14 +121,14 @@ class LineaDesgrane(Linea):
 
 '''
 Clase que representa una línea de sorting.
-SUPUESTO: las líneas de sorting son indeferentes a GMO/No-GMO. Es decir, todas
+SUPUESTO: las líneas de sorting son indiferentes a GMO/No-GMO. Es decir, todas
 sierven para ambos tipos.
 '''
 class LineaSorting(Linea):
     def __init__(self, automatica):
         super().__init__()
-        self.velocidad = velocidad_sorting_automatico if \
-            automatica else velocidad_sorting_manual
+        self.velocidad = velocidad_sorting_automatico if automatica \
+                         else velocidad_sorting_manual
         self.tiempo_final_sorting = float('inf')
 
 
@@ -136,14 +136,14 @@ class LineaSorting(Linea):
 Clase que representa un secador con sus respectivos modulos modulos y clases
 '''
 class Secador:
-    def __init__(self, gmo, cantidad,capacidad):
-        self.modulos = generar_modulos(cantidad, capacidad)
+    def __init__(self, gmo, cantidad, capacidad):
+        self.modulos = self.generar_modulos(cantidad, capacidad)
         self.gmo = gmo
 
     def generar_modulos(self, cantidad, capacidad):
+        modulos = dict()
         for i in range(cantidad):
-            modulos = {}
-            modulos[i] = Modulo(capacidad)
+            modulos[i] = Modulo(True, 0)
         return modulos
 
 
@@ -215,7 +215,7 @@ class Llegada:
         return Evento(lote.tiempo_llegada, lote, 'llegada_camion')
 
     '''
-    Asigna un deque de tuplas de formato [(tipo, gmo, tiempo_entre_llegadas)] al
+    Asigna un deque de dicts de formato [{tipo, gmo, tiempo_entre_llegadas}] al
     atributo llegadas. Debe ser ejecutado cada día de la simulación.
     '''
     def generar_llegadas(self):
@@ -229,7 +229,7 @@ class Llegada:
     def proxima_entidad(self):
         if self.llegadas:
             x = self.llegadas.popleft()
-            self.tiempo_hasta_proxima_llegada = x[2]
+            self.tiempo_hasta_proxima_llegada = x['tiempo_entre_llegadas']
             return x
         else:
             self.tiempo_hasta_proxima_llegada = float('inf')
@@ -239,21 +239,17 @@ class Llegada:
     Representa la llegada de un camión a la planta. Crea la entidad camión y
     retorna un evento de tipo "llegada_camion".
     '''
-    def entregar_lote(self):
-        attrs = self.entidad_siguiente
+    def entregar_lote(self, tiempo_actual):
+        entidad_siguiente = self.entidad_siguiente
+        attrs = False
+        if entidad_siguiente is not None:
+            attrs = list(self.entidad_siguiente.values())
         if not attrs:
             return None
         lote = self.generar_camion(*attrs)
+        lote.tiempo_llegada += tiempo_actual
         self.entidad_siguiente = self.proxima_entidad()
         return self.generar_evento_llegada(lote)
-
-
-
-'''
-DESCARGA EN REMODELAMIENTO.
-'''
-
-
 
 
 '''
@@ -262,13 +258,9 @@ Módulo que representa el proceso de descarga.
 class Descarga:
     def __init__(self):
         self.cola = deque()
-        self.largo_cola = 0
         self.lineas = self.generar_lineas_descarga()  # diccionario {n: linea_n}
-        self.hibridos_pasando = {}  # diccionario {tipo_híbrido: num_línea}
-        self.lineas_ocupadas = 0
-        self.cola_fin_descargas = deque()
 
-        # self.lista_eventos = SortedList(key=lambda x: -x.tiempo)
+        self.lineas_ocupadas = 0
 
     '''
     Genera 2 líneas de descarga destinadas a GMO, y 2 destinadas a No-GMO. Crea
@@ -284,113 +276,77 @@ class Descarga:
     '''
     def recibir_lote(self, lote):
         self.cola.append(lote)
-        self.largo_cola += 1
-
-        '''
-        Agregar generación de evento 'termino_descarga'
-        '''
-
-    def comienzo_descarga(self, lote):
-        pass
 
     '''
-    Retorna el menor tiempo en que una de las líneas termina de descargar.
+    Retorna una lista con los números de las líneas desocupadas.
     '''
-    def tiempo_finalizacion_proxima_descarga(self):
-        if self.cola_fin_descargas:
-            return self.cola_fin_descargas[0].tiempo_hasta_fin_proceso
+    def lineas_desocupadas(self):
+        return [u for u, v in self.lineas.items() if not v.ocupada()]
 
     '''
-    Retorna tupla (lote, linea) correspondiente al siguiente lote a pasar por
-    las líneas de descarga y un parámetro que determina si hay una línea en
-    específico por la cual debe pasar.
+    Retorna un diccionario cuyas keys son los tipos de híbrido pasando por las
+    líneas, y sus values son los números de las líneas correspondientes.
+    '''
+    def hibridos_pasando(self):
+        return {linea.tipo_hibrido: n for n, linea in self.lineas.items()}
+
+    '''
+    Retorna (Lote(), num_línea) correspondiente al lote que debe pasar más
+    próximamente. Si num_línea es None, no va dirigido específicamente. Si no lo
+    es, debe ir a la línea correspondiente.
     
-    CORRESPONDE A LA DECISIÓN: hacer pasar el lote que corresponda a un híbrido
-    que ya está pasando por alguna de las líneas.
-    
-    NO SE ESTÁ CONSIDERANDO EL HECHO DE QUE LAS LÍNEAS DE DESCARGA CORRESPONDAN
-    A GMO/NO-GMO.
+    No considera GMO/No-GMO.
     '''
     def asignar_lote_siguiente(self):
         if not len(self.cola):
             raise ValueError('Intentando asignar un lote inexistente')
-        self.largo_cola -= 1
+
         indice = 0
+        hibridos_pasando = self.hibridos_pasando()
         for lote in self.cola:
-            if lote.tipo in self.hibridos_pasando:
-                linea_correspondiente = self.hibridos_pasando[lote.tipo]
-                if not indice:
-                    x = self.cola.popleft()
-                else:
-                    x = self.cola.pop(indice)
-                return x, linea_correspondiente
+            if lote.tipo in hibridos_pasando:
+                linea_correspondiente = hibridos_pasando[lote.tipo]
+                return self.cola.pop(indice), linea_correspondiente
             indice += 1
+
         return self.cola.popleft(), None
 
     '''
-    Comienza a descargar un lote en alguna de las líneas, dependiendo si va
-    dirigido específicamente a una o no. Agrega el lote a la línea que
-    corresponda y appendea en la cola de fin de descargas de manera tal que
-    esta quede ordenada según los tiempos.
+    Retorna el número de la primera línea que está desocupada.
     '''
-    def comenzar_descarga(self):
+    def asignar_linea_arbitraria(self):
+        for n, linea in self.lineas.items():
+            if not linea.ocupada():
+                return n
+        raise ValueError('Todas las líneas están ocupadas.')
+
+    '''
+    Comienza la descarga de un camión. Retorna un Evento('termina_descarga').
+    '''
+    def comenzar_descarga(self, clock):
         lote, n = self.asignar_lote_siguiente()
-        if n is not None:
-            n_linea_asignada = n
-        else:
-            '''
-            DECISIÓN: elegir línea desocupada de menor número. EVALUAR
-            REEMPLAZAR POR PRIORIDAD DE HÍBRIDO.
-            
-            FALTA AGREGAR TIEMPO DE SIMULACIÓN.
-            '''
-            n_linea_asignada = None
-            for num, linea in self.lineas.items():
-                if not linea.ocupada():
-                    n_linea_asignada = num
-                    break
-            if n_linea_asignada is None:
-                raise ValueError('Tratando de comenzar descarga cuando no hay '
-                                 'líneas desocupadas.')
-        linea = self.lineas[n_linea_asignada]
-        if n is not None:
-            tiempo_limpieza = 0
-        else:
-            tiempo_limpieza = linea.tiempo_limpieza_por_hibrido()
-        lote.tiempo_hasta_fin_proceso = (lote.carga / linea.velocidad) + \
-                                        tiempo_limpieza  # sumar clock.t
-        self.hibridos_pasando[lote.tipo] = n_linea_asignada
+        if n is None:
+            n = self.asignar_linea_arbitraria()
+
+        linea = self.lineas[n]
         linea.lote_actual = lote
         linea.tipo_hibrido = lote.tipo
-        insort_by_index(self.cola_fin_descargas,
-                        (n_linea_asignada,
-                         linea.lote_actual.tiempo_hasta_fin_proceso), 1)
+
+        tiempo_limpieza = 0
+        if lote.tipo != linea.tipo_hibrido:
+            tiempo_limpieza += linea.tiempo_limpieza_por_hibrido()
+        tiempo_procesamiento = linea.tiempo_en_pasar() + tiempo_limpieza
+
+        return Evento(clock + tiempo_procesamiento, lote,
+                      'termina_descarga', descarga=n)
+
 
     '''
-    
+    Despeja la línea correspondiente. Retorna un Evento('comienza_sorting'),
     '''
-    def terminar_descarga(self, n_linea):
-        # eliminar hibrido pasando por linea
-        # eliminar lote_Actual en linea
-        # ejecutar entregar lote para pasar la entidad al sorting
-        pass
-
-    '''
-    Entrega un lote a alguna de las líneas de sorting. Se ejecuta en el momento
-    en que se termina de descargar un camión.
-    SUPUESTO: no hay almacenamiento de inventario entre descarga y sorting.
-    '''
-    def entregar_lote(self, lote, sorting):
-        sorting.recibir_lote(lote)
-
-
-
-
-'''
-DESCARGA EN REMODELAMIENTO.
-'''
-
-
+    def terminar_descarga(self, lote, n, clock):
+        self.lineas[n].desocupar()
+        return Evento(clock, lote, 'comienza_sorting')
 
 
 '''
@@ -398,32 +354,55 @@ Módulo que representa el proceso de sorting.
 '''
 class Sorting:
     def __init__(self):
-        pass
+        self.lineas = self.generar_lineas_sorting()
 
     '''
-    Genera 2 líneas de sorting automáticas y 2 manuales. Crea un diccionario
-    para poder acceder a ellas.
+    Genera 2 líneas de sorting automáticas (1, 2) y 2 manuales (3, 4). Crea un 
+    diccionario para poder acceder a ellas.
     '''
     def generar_lineas_sorting(self):
         linea_1, linea_2 = LineaSorting(True), LineaSorting(True)
         linea_3, linea_4 = LineaSorting(False), LineaSorting(False)
-        self.lineas = {1: linea_1, 2: linea_2, 3: linea_3, 4: linea_4}
+        return {1: linea_1, 2: linea_2, 3: linea_3, 4: linea_4}
+
+    '''
+    Retorna una lista con los números de las líneas desocupadas.
+    '''
+    def lineas_desocupadas(self):
+        return [u for u, v in self.lineas.items() if not v.ocupada()]
+
+    '''
+    Asigna una línea a un proceso. Asigna en orden creciente (ya que las
+    automáticas corresponden a la 1 y 2).
+    '''
+    def asignar_linea_sorting(self):
+        for n, linea in self.lineas.items():
+            if not linea.ocupada():
+                return n
+        raise ValueError('Todas las líneas de Sorting están ocupadas.')
 
     '''
     Recibe un lote desde una línea de descarga en alguna de las líneas de
-    sorting.
+    sorting. Retorna un Evento('termina_sorting')
     '''
-    def recibir_lote(self):
-        pass
+    def comenzar_sorting(self, lote, clock):
+        n = self.asignar_linea_sorting()
+        linea = self.lineas[n]
+        linea.lote_actual = lote
+
+        tiempo_procesamiento = linea.tiempo_en_pasar()
+
+        return Evento(clock + tiempo_procesamiento, lote,
+                      'termina_sorting', sorting=n)
+
 
     '''
     Entrega un lote a alguna de las unidades de secado.
     SUPUESTO: no hay almacenamiento de inventario entre sorting y secado.
     '''
-    def entregar_lote(self):
-        pass
-
-
+    def terminar_sorting(self, lote, n, clock):
+        self.lineas[n].desocupar()
+        return Evento(clock, lote, 'comienza_secado')
 
 
 '''
@@ -529,7 +508,13 @@ class Desgrane:
         lote.tiempo_hasta_fin_proceso = (lote.carga / linea.velocidad) + \
                                         tiempo_limpieza  # sumar clock.t
         self.hibridos_pasando[n_linea_asignada] = lote.tipo #Nose si se elimina la otra lines
+        '''
+        
+        Eliminé el insort_by_index. Sale más eficiente implementar una
+        SortedList.
+        
         insort_by_index(self.fin_de_desgrane,
                         (n_linea_asignada,
                          linea.lote_actual.tiempo_hasta_fin_proceso), 1)
+        '''
         ### Falta agregar cosas###
