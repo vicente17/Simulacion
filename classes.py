@@ -1,19 +1,7 @@
 from collections import deque, defaultdict
 from functions import *
 from parameters import *
-
-'''
-Insort es una función que inserta eficientemente (O(n)) un elemento en una
-lista ordenada. Se usa de la forma insort(lista, elemento). Será útil en el
-momento de tener que agregar eventos a una lista de eventos ordenados por tiempo
-de ocurrencia.
-
-DETALLE: se debe agregar siempre el tiempo en el reloj al finalizar o comenzar
-procesos, para que se refleje el tiempo real de ocurrencia. Es decir, 
-clock.t + lote.tiempo_hasta_finalizacion_proceso
-'''
-
-################################################################################
+from sortedcontainers import SortedList
 
 '''
 Clase que representa un evento que ocurre en la simulación.
@@ -38,7 +26,7 @@ class Lote:
 
     id_counter = 0
 
-    def __init__(self, tipo, gmo, tiempo_llegada, ):
+    def __init__(self, tipo, gmo, tiempo_llegada):
         self.tipo = tipo
         self.gmo = gmo
         self.__humedad = humedad_lote()
@@ -61,6 +49,21 @@ class Lote:
         else:
             self.__humedad = valor
 
+
+'''
+Clase que representa una mezcla de lotes, luego de haber pasado por el proceso 
+de Secado.
+'''
+class LoteMezclado(Lote):
+
+    id_counter = 0
+
+    def __init__(self, tipo, gmo, tiempo_llegada):
+        super().__init__(tipo, gmo, tiempo_llegada)
+
+    def generate_id(self):
+        LoteMezclado.id_counter += 1
+        return self.id_counter
 
 '''
 Clase que representa una linea.
@@ -135,9 +138,6 @@ class LineaSorting(Linea):
                          else velocidad_sorting_manual
         self.tiempo_final_sorting = float('inf')
 
-
-
-################################################################################
 
 '''
 Módulo que representa la llegada de camiones.
@@ -349,11 +349,10 @@ class Sorting:
 
         tiempo_procesamiento = linea.tiempo_en_pasar()
 
-        print(f'Se asigna Lote({lote.id}) a la línea de sorting {n}')
+        print(f'Se asigna Lote({lote.id}) a la línea de sorting {n}.')
 
         return Evento(clock + tiempo_procesamiento, lote,
                       'termina_sorting', sorting=n)
-
 
     '''
     Entrega un lote a alguna de las unidades de secado.
@@ -362,21 +361,7 @@ class Sorting:
     def terminar_sorting(self, lote, n, clock):
         self.lineas[n].desocupar()
         print(f'Desocupando línea de sorting {n}.')
-        return Evento(clock, lote, 'comienza_secado')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        return Evento(clock, lote, 'llenar_modulo')
 
 
 
@@ -436,10 +421,10 @@ class Modulo:
         self.terminado = True
 
     '''
-    Vacía el módulo y actualiza parámetros correspondientes. Retorna el tipo
-    de híbrido que contenía el módulo antes de vaciarse.
+    Vacía el módulo y actualiza parámetros correspondientes. Retorna un
+    LoteMezclado
     '''
-    def vaciar(self):
+    def vaciar(self, clock):
         tipo_anterior = self.tipo_hibrido
 
         self.lotes = []
@@ -449,7 +434,7 @@ class Modulo:
         self.tiempo_inicio_carga = None
         self.carga = 0
 
-        return tipo_anterior
+        return LoteMezclado(tipo_anterior, None, clock)
 
     '''
     Retorna True si el módulo está ocupado, False en caso contrario.
@@ -491,9 +476,29 @@ class Secador:
     '''
     def lote_a_modulo(self, lote, m, clock):
         modulo = self.modulos[m]
+        first = False
+
+        if not modulo.ocupado():
+            first = True
+
+        cumple_capacidad = False
         modulo.cargar(lote, clock)
+        if modulo.capacidad - modulo.carga <= toneladas_cierre_modulo:
+            cumple_capacidad = True
+
         self.hibridos_contenidos[lote.tipo].append(m)
-        return True
+        tiempo_cierre = clock + horas_cierre_modulo
+        if first:
+            print('Se genera evento de cierre de módulo por cumplimiento de '
+                  f'tiempo. El módulo se cerrará en T <= {tiempo_cierre}.')
+            return Evento(tiempo_cierre, None, 'comienza_secado',
+                          modulo=m)
+        if cumple_capacidad:
+            print('Se genera evento de cierre de módulo por cumplimiento de '
+                  f'capacidad. El módulo se cerrará en T <= {tiempo_cierre}.')
+            return Evento(tiempo_cierre, None, 'comienza_secado',
+                          modulo=m)
+        return None
 
 
 
@@ -503,6 +508,7 @@ Clase que representa el proceso de Secado.
 class Secado:
     def __init__(self):
         self.secadores = self.generar_secadores()
+        self.tuplas_esperando_descarga = SortedList()
 
     ''' 
     Genera los 5 secadores correspondientes al proceso de Secado.
@@ -552,8 +558,10 @@ class Secado:
     def lote_a_secador(self, lote, n, m, clock):
         secador = self.secadores[n]
         evento = secador.lote_a_modulo(lote, m, clock)
-        if evento:
-            return
+        if evento is not None:
+            evento.secador = n
+            return evento
+        return None
 
     '''
     Carga el lote en el secador y módulo que correspondan. Retorna un evento de
@@ -570,6 +578,7 @@ class Secado:
                 return None
             n, m = disponibilidad
         evento = self.lote_a_secador(lote, n, m, clock)
+        print(f'Se asigna Lote({lote.id}) a Módulo({m}) en Secador({n}).')
         return evento
 
     '''
@@ -580,48 +589,20 @@ class Secado:
         return modulo.iniciar_secado(n, m, clock)
 
     '''
-    Abre el módulo correspondiente, dejándolo disponible para ser descargado.
+    Abre el módulo correspondiente, dejándolo disponible para ser vaciado.
     '''
     def abrir_modulo(self, n, m):
         modulo = self.secadores[n].modulos[m]
         modulo.abrir()
 
-
-
-
-
-
-
-
-
-
-
     '''
-    Se asigna el lote a un modulo. Primero se busca algún modulo que tenga el
-    mismo lote, en caso contrario se elige el primero desocupado
+    Vacía el módulo correspondiente, dejándolo disponible para ser vuelto a
+    usar. Retorna un evento de inicio de desgrane.
     '''
-    def asignar_lote_siguiente(self):
-        if self.lote_siguiente:
-            for numero, secador in self.secadores.items():
-                if secador.gmo == self.lote_siguiente.gmo:
-                    for numero,modulo in self.secador.modulos.items():
-                        if modulo.lote_actual == self.lote_siguiente.tipo and not modulo.iniciado:
-                            self.modulo.agregar_hibrido(self.lote_siguiente)
-                            break
-            for numero, secador in self.secadores.items():
-                if secador.gmo == self.lote_siguiente.gmo:
-                    for numero, modulo in self.secador.modulos.items():
-                        if not modulo.lote_actual:
-                            self.modulo.agregar_hibrido(self.lote_siguiente)
-                            break
-            print('NO HAY MODULO DISPONIBLE')
-
-
-
-
-
-
-
+    def vaciar_modulo(self, n, m, clock):
+        modulo = self.secadores[n].modulos[m]
+        lote_mezclado = modulo.vaciar(clock)
+        return Evento(clock, lote_mezclado, 'comienza_desgrane')
 
 
 

@@ -53,4 +53,4 @@ capacidad_modulos_secador_5 = 2280  # m^3
 
 toneladas_cierre_modulo = 21  # toneladas
 horas_cierre_modulo = 5  # horas
-humedad_final_secado= 0.125
+humedad_final_secado = 0.125

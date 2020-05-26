@@ -1,8 +1,4 @@
 from classes import *
-from sortedcontainers import SortedList
-import sys
-
-
 
 '''
 Representa la planta donde ocurren los procesos. El reloj de simulación se
@@ -23,67 +19,10 @@ class Planta:
         '''
         Lista que permanece siempre ordenada decrecientemente según el atributo
         tiempo de la clase Evento. Para agregar un elemento, lista.add(elem).
-        Para retornar el Evento de menor tiempo, lista.pop().
+        Para retornar el evento de menor tiempo, lista.pop().
         '''
         self.lista_eventos = SortedList(key=lambda x: -x.tiempo)
 
-
-        '''
-        Esquema eventos:
-        
-        - 'siguiente_dia'
-          -> Llegadas.generar_llegadas()
-          -> evento_llegada = Llegadas.entregar_lote(tiempo_actual)
-          -> self.lista_eventos.add(evento_llegada)
-        
-        - 'llegada_camion' (lote)
-          -> evento_siguiente_llegada = Llegada.entregar_lote()
-             if evento_siguiente_llegada is not None: 
-                Planta.lista_eventos.add(evento_siguiente_llegada)
-                
-          -> Descarga.recibir_lote(lote)
-          -> if Descarga.hay_linea_desocupada():
-                if Sorting.hay_linea_desocupada():
-                   evento_termina_descarga = Descarga.comenzar_descarga()
-                   Planta.lista_eventos.add(evento_termina_descarga)
-                   
-        - 'comienza_descarga' (lote)
-          -> generar_evento 'termina_descarga'
-          
-        - 'termina_descarga'
-           -> evento_inicio_sorting = Descarga.terminar_descarga(n, clock)
-
-           -> if Descarga.cola:
-                 evento = comenzar_descarga
-                 Planta.lista_eventos.add(evento)
-                 
-        - 'comienza_sorting'
-           -> if Sorting.hay_linea_desocupada():
-                 'comenzar_sorting'
-                 generar evento 'termina_sorting'
-              else:
-                 desechar_lote
-        
-           
-        - 'termina_sorting'
-           -> if Secado.hay_espacio(lote):
-                 Secado.agregar_a_modulo
-                 
-        - 'agregar_a_módulo_secado'
-           -> if módulo está inicialmente vacío:
-                 generar evento 'comienza_secado' (por tiempo de espera)
-                 
-              else:
-                 if módulo cumple capacidad:
-                    'comenzar_secado'
-                    
-        
-                 
-           
-        
-                 
-        
-        '''
 
 
     '''
@@ -148,8 +87,9 @@ class Planta:
 
             if evento_simulacion.tipo == 'llegada_camion':
                 lote = evento_simulacion.lote
-                print(f'Llegando Lote(ID = {lote.id}; Carga = {lote.carga:.5f};'
-                      f' Humedad = {lote.humedad}; GMO = {lote.gmo}).')
+                print(f'Llegando Lote(ID = {lote.id}; Tipo = {lote.tipo}; '
+                      f'Carga = {lote.carga:.5f}; '
+                      f'Humedad = {lote.humedad}; GMO = {lote.gmo}).')
                 self.descarga.recibir_lote(evento_simulacion.lote)
 
                 if self.descarga.lineas_desocupadas() and \
@@ -159,7 +99,7 @@ class Planta:
                                                                    lote)
                     if evento_comienza_descarga is not None:
                         print('Agregando evento [comienza descarga de Lote'
-                              f'({lote.id}] a la lista de eventos. Descarga '
+                              f'({lote.id})] a la lista de eventos. Descarga '
                               f'comenzará en T = '
                               f'{evento_comienza_descarga.tiempo}.')
                         self.lista_eventos.add(evento_comienza_descarga)
@@ -172,12 +112,13 @@ class Planta:
                     self.lista_eventos.add(evento_sgte_llegada)
 
             if evento_simulacion.tipo == 'comienza_descarga':
-                print(f'Comenzando descarga de lote número'
-                      f'{evento_simulacion.lote.id} por línea '
-                      f'{evento_simulacion.descarga}.')
-                evento_fin_descarga = self.descarga.comenzar_descarga(self.reloj)
+                evento_fin_descarga =\
+                    self.descarga.comenzar_descarga(self.reloj)
                 if evento_fin_descarga is not None:
                     id = evento_fin_descarga.lote.id
+                    print(f'Comenzando descarga de Lote('
+                          f'{evento_fin_descarga.lote.id}) por línea '
+                          f'{evento_fin_descarga.descarga}.')
                     print(f'Agregando evento [terminar descarga de Lote({id})]'
                           ' a la lista de eventos. Descarga terminará en T = '
                           f'{evento_fin_descarga.tiempo}.')
@@ -204,10 +145,10 @@ class Planta:
                     self.lista_eventos.add(evento)
 
             if evento_simulacion.tipo == 'comienza_sorting':
-
                 if self.sorting.lineas_desocupadas():
-                    evento = self.sorting.comenzar_sorting(evento_simulacion.lote,
-                                                           self.reloj)
+                    evento =\
+                        self.sorting.comenzar_sorting(evento_simulacion.lote,
+                                                      self.reloj)
                     print(f'Comenzando proceso de sorting de lote'
                           f' {evento.lote.id}.')
                     print(f'Agregando evento [termina sorting de Lote('
@@ -222,17 +163,17 @@ class Planta:
                 id = evento_simulacion.lote.id
                 print(f'Terminando proceso de sorting de Lote({id})')
 
-                evento_comienza_secado = self.sorting.terminar_sorting(
+                evento_llenar_modulo = self.sorting.terminar_sorting(
                                                 evento_simulacion.lote,
                                                 evento_simulacion.sorting,
                                                 self.reloj)
-                self.lista_eventos.add(evento_comienza_secado)
+                self.lista_eventos.add(evento_llenar_modulo)
                 print(f'Lineas de sorting desocupadas: '
                       f'{self.sorting.lineas_desocupadas()}')
-                print('Agregando evento [comienza secado de Lote('
-                      f'{evento_comienza_secado.lote.id})] a la lista de '
-                      f'eventos. Secado comenzará en T = '
-                      f'{evento_comienza_secado.tiempo}.')
+                print('Agregando evento [llenar modulo con Lote('
+                      f'{evento_llenar_modulo.lote.id})] a la lista de '
+                      f'eventos. Llenado de módulo se ejecutará en T = '
+                      f'{evento_llenar_modulo.tiempo}.')
 
                 if self.descarga.lineas_desocupadas():
                     evento_comienza_descarga = \
@@ -248,17 +189,39 @@ class Planta:
                 # SUPUESTO: se gatilla descarga cuando se libera una línea de
                 # sorting y existe una línea de descarga desocupada.
 
+            if evento_simulacion.tipo == 'llenar_modulo':
+                lote = evento_simulacion.lote
+                evento_cierre_modulo = self.secado.recibir_lote(lote,
+                                                                self.reloj)
+                if evento_cierre_modulo is not None:
+                    self.lista_eventos.add(evento_cierre_modulo)
+
+
             if evento_simulacion.tipo == 'comienza_secado':
-                pass
+                n, m = evento_simulacion.secador, evento_simulacion.modulo
+                evento_termina_secado = \
+                    self.secado.cerrar_modulo(n, m, self.reloj)
+                print(f'Cerrando Módulo({m}) del Secador({n}).')
+                self.lista_eventos.add(evento_termina_secado)
+                print(f'Agregando evento [termina secado de Módulo({m}) de '
+                      f'Secador({n})] a la lista de eventos. Secado '
+                      f'terminará en T = '
+                      f'{evento_termina_secado.tiempo}.')
 
             if evento_simulacion.tipo == 'termina_secado':
-                pass
+                # Falta agregar que módulos se cierren por capacidad o tiempo.
+                # y que un evento cancele al otro.
+                if 'desgrane desocupado':
+                    x = 'generar evento vaciar secador'
+
+            if evento_simulacion.tipo == 'vacia_secado':
+                x = 'generar evento comienza desgrane'
 
             if evento_simulacion.tipo == 'comienza_desgrane':
-                pass
+                x = 'generar evento termina desgrane'
 
             if evento_simulacion.tipo == 'termina_desgrane':
-                pass
+                x = 'deshacerse del lote y actualizar medidas de desempeño'
 
             print()
             print_eventos_pendientes = False
