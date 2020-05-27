@@ -8,7 +8,7 @@ Clase que representa un evento que ocurre en la simulación.
 '''
 class Evento:
     def __init__(self, tiempo, lote, tipo, descarga=None, sorting=None,
-                 secador=None, modulo=None):
+                 secador=None, modulo=None, desgrane=None, secado=None):
         self.tiempo = tiempo
         self.lote = lote
         self.tipo = tipo
@@ -17,6 +17,8 @@ class Evento:
         self.sorting = sorting
         self.modulo = modulo
         self.secador = secador
+        self.desgrane = desgrane
+        self.secado = secado
 
 
 '''
@@ -60,10 +62,23 @@ class LoteMezclado(Lote):
 
     def __init__(self, tipo, gmo, tiempo_llegada):
         super().__init__(tipo, gmo, tiempo_llegada)
+        self.componentes = []
+        self.cantidad = 0
+        self.carga = 0
 
     def generate_id(self):
         LoteMezclado.id_counter += 1
         return self.id_counter
+
+    def agregar_lote(self, lote):
+        self.componentes.append(lote)
+        self.carga += lote.carga
+
+    @property
+    def humedad(self):
+        return sum([lote.humedad * lote.carga for lote in self.componentes]) \
+               / self.carga
+
 
 '''
 Clase que representa una linea.
@@ -117,6 +132,9 @@ class LineaDescarga(Linea):
         return limpieza_hibrido_descarga()
 
 
+'''
+Clase que representa una línea de desgrane.
+'''
 class LineaDesgrane(Linea):
     def __init__(self):
         super().__init__()
@@ -375,83 +393,115 @@ class Modulo:
         self.gmo = gmo
         self.capacidad = capacidad
         self.velocidad = velocidad_secado
-        self.lotes = []
-        self.iniciado = False
-        self.terminado = None
-        self.tipo_hibrido = None
-        self.carga = 0
-        self.tiempo_inicio_carga = None
 
-    '''
-    Calcula la humedad de los lotes presentes en el módulo.
-    SUPUESTO: la humedad inicial de un conjunto de lotes es el promedio
-    ponderado por las cargas de los lotes que lo componen.
-    '''
-    def humedad_inicial(self):
-        carga_total = sum([lote.carga for lote in self.lotes])
-        return sum([lote.humedad * (lote.carga / carga_total) for
-                    lote in self.lotes])
+        self.iniciado = False
+        self.terminado = False
+
+        self.tiempo_inicio_carga = None
+        self.lote_mezclado = None
 
     '''
     Calcula el tiempo de secado según el conjunto de lotes en el módulo.
     '''
     def tiempo_secado(self):
-        return self.humedad_inicial() / self.velocidad
+        return (self.lote_mezclado.humedad - humedad_final_secado) / \
+                self.velocidad
 
     '''
-    Agrega un lote a la lista de lotes dentro del módulo.
+    Retorna True si el módulo está ocupado, False en caso contrario.
+    '''
+    def ocupado(self):
+        if self.lote_mezclado is not None:
+            return True
+        return False
+
+    '''
+    Retorna el tipo de híbrido presente en el módulo.
+    '''
+    @property
+    def tipo_hibrido(self):
+        if not self.ocupado():
+            return None
+        return self.lote_mezclado.tipo
+
+    '''
+    Retorna estado correspondiente, dependiendo de (iniciado, terminado).
+    '''
+    @property
+    def estado(self):
+        if not self.iniciado:
+            return 'esperando_carga'  # (0, *)
+        if not self.terminado:
+            return 'secando'  # (1, 0)
+        return 'esperando_desgrane'  # (1, 1)
+
+    '''
+    Retorna la carga del módulo.
+    '''
+    @property
+    def carga(self):
+        if not self.ocupado():
+            return 0
+        return self.lote_mezclado.carga
+
+    '''
+    Agrega un lote al LoteMezclado en el módulo.
     '''
     def cargar(self, lote, clock=None):
+        if self.estado != 'esperando_carga':
+            raise ValueError('Cargando en estado incorrecto.')
+
         if self.ocupado():
             if lote.tipo != self.tipo_hibrido:
-                raise ValueError('Intentando cargar módulo con distintos tipos '
-                                 'de híbrido.')
+                raise ValueError\
+                (f'Intentando cargar módulo con distintos tipos de híbrido '
+                 f'({lote.tipo == self.tipo_hibrido}/'
+                 f'{self.tipo_hibrido}).')
+
         else:
-            self.tipo_hibrido = lote.tipo
-        self.lotes.append(lote)
-        self.carga += lote.carga
-        self.terminado = False
-        if self.tiempo_inicio_carga is None:
+            self.lote_mezclado = LoteMezclado(lote.tipo, lote.gmo, clock)
             self.tiempo_inicio_carga = clock
+
+        self.lote_mezclado.agregar_lote(lote)
+        print(f'Cargando módulo con {lote.carga} tons. '
+              f'{self.capacidad - self.lote_mezclado.carga} tons restantes.')
+
 
     '''
     Abre el módulo, una vez terminado el proceso de secado.
     '''
     def abrir(self):
         self.terminado = True
+        return self.lote_mezclado
 
     '''
     Vacía el módulo y actualiza parámetros correspondientes. Retorna un
-    LoteMezclado
+    LoteMezclado.
     '''
-    def vaciar(self, clock):
-        tipo_anterior = self.tipo_hibrido
+    def vaciar(self):
+        if self.estado != 'esperando_desgrane':
+            raise ValueError('Vaciando en estado incorrecto.')
 
-        self.lotes = []
+        lote_mezclado = self.lote_mezclado
+
         self.iniciado = False
-        self.terminado = None
-        self.tipo_hibrido = None
+        self.lote_mezclado = None
         self.tiempo_inicio_carga = None
-        self.carga = 0
 
-        return LoteMezclado(tipo_anterior, None, clock)
-
-    '''
-    Retorna True si el módulo está ocupado, False en caso contrario.
-    '''
-    def ocupado(self):
-        if self.lotes:
-            return True
-        return False
+        return lote_mezclado
 
     '''
     Cierra el módulo e inicia el secado. Retorna evento de término de secado.
     '''
     def iniciar_secado(self, n, m, clock):
+        if self.estado != 'esperando_carga':
+            raise ValueError('Iniciando carga en estado incorrecto.')
+
         self.iniciado = True
+        self.terminado = False
         tiempo_proceso = self.tiempo_secado()
-        return Evento(clock + tiempo_proceso, None, 'termina_secado',
-                      secador=n, modulo=m)
+        return Evento(clock + tiempo_proceso, self.lote_mezclado,
+                      'termina_secado', secador=n, modulo=m)
 
 
 '''
@@ -462,41 +512,49 @@ class Secador:
         self.gmo = gmo
         self.capacidad = capacidad
         self.modulos = self.generar_modulos(cantidad, capacidad)
-        self.hibridos_contenidos = defaultdict(list)
-        self.modulos_vacios = len(self.modulos)
+        self.hibridos_contenidos = defaultdict(set)
+        self.modulos_vacios = cantidad
 
     '''
     Genera los módulos correspondientes al secador.
     '''
     def generar_modulos(self, cantidad, capacidad):
-        return {n: Modulo(self.gmo, capacidad) for n in range(1, cantidad+1)}
+        return {n+1: Modulo(self.gmo, capacidad) for n in range(cantidad)}
 
     '''
     Carga el lote en el módulo m.
     '''
     def lote_a_modulo(self, lote, m, clock):
         modulo = self.modulos[m]
-        first = False
 
+        first = False
         if not modulo.ocupado():
             first = True
+            self.modulos_vacios -= 1
+
+        modulo.cargar(lote, clock)
 
         cumple_capacidad = False
-        modulo.cargar(lote, clock)
         if modulo.capacidad - modulo.carga <= toneladas_cierre_modulo:
             cumple_capacidad = True
 
-        self.hibridos_contenidos[lote.tipo].append(m)
-        tiempo_cierre = clock + horas_cierre_modulo
+        self.hibridos_contenidos[lote.tipo].add(m)
+
+        '''
+        Lo comento para debuggear.
+        
         if first:
+            tiempo_cierre = clock + horas_cierre_modulo
             print('Se genera evento de cierre de módulo por cumplimiento de '
                   f'tiempo. El módulo se cerrará en T <= {tiempo_cierre}.')
-            return Evento(tiempo_cierre, None, 'comienza_secado',
+            return Evento(tiempo_cierre, None, 'comienza_secado_por_tiempo',
                           modulo=m)
+        '''
+
         if cumple_capacidad:
             print('Se genera evento de cierre de módulo por cumplimiento de '
-                  f'capacidad. El módulo se cerrará en T <= {tiempo_cierre}.')
-            return Evento(tiempo_cierre, None, 'comienza_secado',
+                  f'capacidad. El módulo se cerrará en T = {clock}.')
+            return Evento(clock, None, 'comienza_secado_por_capacidad',
                           modulo=m)
         return None
 
@@ -508,7 +566,8 @@ Clase que representa el proceso de Secado.
 class Secado:
     def __init__(self):
         self.secadores = self.generar_secadores()
-        self.tuplas_esperando_descarga = SortedList()
+        self.esperando_descarga = SortedList(key=lambda x: -x[2].carga)
+        # (n, m, lote_mezclado)
 
     ''' 
     Genera los 5 secadores correspondientes al proceso de Secado.
@@ -533,11 +592,25 @@ class Secado:
     '''
     def dirigir_especifico(self, lote):
         for n, secador in self.secadores.items():
+            lista_modulos = {}
             if lote.tipo in secador.hibridos_contenidos:
                 lista_modulos = secador.hibridos_contenidos[lote.tipo]
+            if lista_modulos:
                 for m in lista_modulos:
                     if not secador.modulos[m].iniciado:
-                        return n, m
+                        if secador.modulos[m].carga + lote.carga <=\
+                           secador.modulos[m].capacidad:
+                            return n, m
+                        print(f'No es posible cargar en Módulo({m}) de '
+                              f'Secador({n}) por falta de capacidad.')
+                    else:
+                        if secador.modulos[m].estado == 'secando':
+                            print(f'Secador({n}), Módulo({m}) '
+                                  f'en funcionamiento.')
+                        if secador.modulos[m].estado == 'esperando_desgrane':
+                            print(f'Secador({n}), Módulo({m}) '
+                                  f'esperando desgrane.')
+
         return None
 
     '''
@@ -547,8 +620,23 @@ class Secado:
         for n, secador in self.secadores.items():
             if secador.modulos_vacios:
                 for m, modulo in secador.modulos.items():
-                    if not modulo.carga:
-                        return n, m
+                    if not modulo.ocupado():
+                        if lote.carga <= modulo.capacidad:
+                            return n, m
+                        print(f'No es posible cargar en Secador({n}), '
+                              f'Módulo({m}) por falta de capacidad.')
+                    else:
+                        if modulo.estado == 'secando':
+                            print(f'No es posible cargar en Secador({n}), '
+                                  f'Módulo({m}) por estar en funcionamiento.')
+                        if modulo.estado == 'esperando_carga':
+                            print(f'No es posible cargar en Secador({n}), '
+                                  f'Módulo({m}) por estar ocupado con otro '
+                                  f'tipo.')
+                        if modulo.estado == 'esperando_desgrane':
+                            print(f'No es posible cargar en Secador({n}), '
+                                  f'Módulo({m}) por contener lote seco.')
+                    print(modulo.estado)
         return None
 
     '''
@@ -568,15 +656,21 @@ class Secado:
     cierre de módulo.
     '''
     def recibir_lote(self, lote, clock):
+        n, m, = None, None
         especifico = self.dirigir_especifico(lote)
         if especifico is not None:
             n, m = especifico
+            print(f'Dirigiendo Lote({lote.id}) de tipo {lote.tipo} '
+                  f'específicamente a Secador({n}), Módulo({m}).')
         else:
             disponibilidad = self.asignar_segun_disponibilidad(lote)
             if disponibilidad is None:
-                print('No existen módulos disponibles.')
-                return None
+
+                return Evento(clock, lote, 'perdida_carga', secado=1)
             n, m = disponibilidad
+            print(f'Dirigiendo Lote({lote.id}) de tipo {lote.tipo} azarosamente'
+                  f' a Secador({n}), Módulo({m}).')
+
         evento = self.lote_a_secador(lote, n, m, clock)
         print(f'Se asigna Lote({lote.id}) a Módulo({m}) en Secador({n}).')
         return evento
@@ -586,98 +680,95 @@ class Secado:
     '''
     def cerrar_modulo(self, n, m, clock):
         modulo = self.secadores[n].modulos[m]
+        print(f'Comenzando secado en Módulo ({m}) de Secador({n}).')
         return modulo.iniciar_secado(n, m, clock)
 
     '''
     Abre el módulo correspondiente, dejándolo disponible para ser vaciado.
     '''
-    def abrir_modulo(self, n, m):
+    def abrir_modulo(self, n, m, clock=None):
         modulo = self.secadores[n].modulos[m]
-        modulo.abrir()
+        lote_mezclado = modulo.abrir()
+        print(f'Abriendo Módulo({m}) en Secador({n}).')
+
+        tupla = (n, m, lote_mezclado)
+        self.esperando_descarga.add(tupla)
+
 
     '''
     Vacía el módulo correspondiente, dejándolo disponible para ser vuelto a
-    usar. Retorna un evento de inicio de desgrane.
+    usar. 
     '''
     def vaciar_modulo(self, n, m, clock):
-        modulo = self.secadores[n].modulos[m]
-        lote_mezclado = modulo.vaciar(clock)
-        return Evento(clock, lote_mezclado, 'comienza_desgrane')
+        secador = self.secadores[n]
+        modulo = secador.modulos[m]
 
+        if not modulo.ocupado():
+            raise ValueError('Vaciando módulo desocupado.')
 
+        lote_mezclado = modulo.vaciar()
+        secador.modulos_vacios += 1
+        if lote_mezclado.tipo in secador.hibridos_contenidos:
+            secador.hibridos_contenidos[lote_mezclado.tipo].remove(m)
+            if not len(secador.hibridos_contenidos[lote_mezclado.tipo]):
+                del secador.hibridos_contenidos[lote_mezclado.tipo]
 
-
-
-
-
-
-
-
+        print(f'Vaciando Secador({n}), Módulo({m}).')
 
 '''
 Módulo que representa el proceso de desgrane.
 '''
 class Desgrane:
     def __init__(self):
-        self.lineas= self.generar_lineas_desgrane()
-        self.hornos_secado_listo: {} #diccionario {1: { 1: tipo ..} 2: { 1:tipo }}
-        self.hibridos_pasando = {}  # diccionario {num_linea: hibrido
-        self.fin_de_desgrane= deque()
-        self.hornos = deque()
+        self.lineas = self.generar_lineas_desgrane()
+
     '''
-    Creacion de las 2 lineas de desgrane.
+    Creación de las 2 lineas de desgrane.
     '''
     def generar_lineas_desgrane(self):
         return {1: LineaDesgrane(), 2: LineaDesgrane()}
+
     '''
-    Se asigna el sigueinte lote primero se busca uno del mismo tipo, 
-    en segundo lugar se busca el lote de menor tamaño
+    Retorna el número de la primera línea desocupada. Si no hay disponibilidad, 
+    retorna None.
     '''
-    def asignar_lote_siguiente(self):
-        contador = 0
-        menor = 0
-        for lote in self.hornos:
-            if lote.tipo in self.hibridos_pasando:
-                linea_correspondiente = self.hibridos_pasando[lote.tipo]
-                return linea_correspondiente, self.hornos.popleft(contador)
-            else:
-                contador += 1
-                if lote.carga < menor:
-                    menor = lote.carga
-                    eleccion_lote = lote
-        if contador == len(self.hornos):
-            return None, self.hornos.remove(eleccion_lote)
+    def linea_disponible(self):
+        for l, linea in self.lineas.items():
+            if not linea.ocupada():
+                return l
+        return None
+
     '''
-    Si se agrega el tiempo de limpieza y se cambia la el hibrido en la linea    
+    Retorna evento comenzar desgrane.
     '''
-    def comenzar_desgrane(self):
-        lote, n = self.asignar_lote_siguiente()
-        if n is not None:
-            n_linea_asignada = n
-        else:
-            n_linea_asignada = None
-            for num, linea in self.lineas.items():
-                if not linea.ocupada():
-                    n_linea_asignada = num
-                    break
-            if n_linea_asignada is None:
-                raise ValueError('Tratando de comenzar descarga cuando no hay '
-                'líneas desocupadas.')
-        linea = self.lineas[n_linea_asignada]
-        if n is not None:
-            tiempo_limpieza = 0
-        else:
-            tiempo_limpieza = linea.tiempo_limpieza_por_hibrido()
-        lote.tiempo_hasta_fin_proceso = (lote.carga / linea.velocidad) + \
-                                        tiempo_limpieza  # sumar clock.t
-        self.hibridos_pasando[n_linea_asignada] = lote.tipo #Nose si se elimina la otra lines
-        '''
-        
-        Eliminé el insort_by_index. Sale más eficiente implementar una
-        SortedList.
-        
-        insort_by_index(self.fin_de_desgrane,
-                        (n_linea_asignada,
-                         linea.lote_actual.tiempo_hasta_fin_proceso), 1)
-        '''
-        ### Falta agregar cosas###
+    def comenzar_desgrane(self, clock):
+        return Evento(clock, None, 'comienza_desgrane')
+
+    '''
+    Comienza el proceso de desgrane. Retorna evento de término de desgrane.
+    '''
+    def recibir_lote(self, lote, n, m, clock):
+        l = self.linea_disponible()
+        if l is None:
+            raise ValueError('Comenzando desgrane sin tener línea disponible.')
+        linea = self.lineas[l]
+        tipo_anterior = linea.tipo_hibrido
+
+        linea.lote_actual = lote
+        linea.tipo_hibrido = lote.tipo
+
+        tiempo_limpieza = 0
+        if linea.tipo_hibrido != tipo_anterior:
+            tiempo_limpieza = limpieza_hibrido_desgrane()
+        tiempo_termino = clock + linea.tiempo_en_pasar() + tiempo_limpieza
+
+        return Evento(tiempo_termino,  lote, 'termina_desgrane',
+                      secador=n, modulo=m, desgrane=l)
+
+    '''
+    Termina el desgrane por una línea. Retorna evento "vacia_modulo".
+    '''
+    def terminar_desgrane(self, l, n, m, clock):
+        lote = self.lineas[l].lote_actual
+        self.lineas[l].desocupar()
+        return Evento(clock, lote, 'vaciar_modulo', secador=n, modulo=m)

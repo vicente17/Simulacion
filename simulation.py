@@ -15,6 +15,10 @@ class Planta:
         self.desgrane = Desgrane()
 
         # agregar Medidas de Desempeño
+        self.hibridos_procesados = defaultdict(int)
+        self.toneladas_procesadas = 0
+        self.carga_recibida = 0
+        self.carga_perdida = 0
 
         '''
         Lista que permanece siempre ordenada decrecientemente según el atributo
@@ -23,8 +27,6 @@ class Planta:
         '''
         self.lista_eventos = SortedList(key=lambda x: -x.tiempo)
 
-
-
     '''
     Método que genera instancia de Evento de tipo "siguiente_dia".
     '''
@@ -32,9 +34,15 @@ class Planta:
         return Evento((self.reloj//24)*24 + 24, None, 'siguiente_dia')
 
     '''
-    Método que resetea las estadísticas de la simulación.
+    Método que resetea las medidas de desempeño de la simulación.
     '''
     def resetear_estadisticas(self):
+        self.__init__()
+
+    '''
+    Método que resetea las medidas de desempeño de la simulación.
+    '''
+    def actualizar_estadisticas(self):
         pass
 
     '''
@@ -57,7 +65,11 @@ class Planta:
         print('-------------------------')
         print()
 
+        tiempo_anterior = self.reloj
         while self.reloj < tiempo_simulacion:
+
+            if tiempo_anterior != self.reloj:
+                self.actualizar_estadisticas()
 
             evento_simulacion = self.lista_eventos.pop()
             self.reloj = evento_simulacion.tiempo
@@ -91,6 +103,8 @@ class Planta:
                       f'Carga = {lote.carga:.5f}; '
                       f'Humedad = {lote.humedad}; GMO = {lote.gmo}).')
                 self.descarga.recibir_lote(evento_simulacion.lote)
+
+                self.carga_recibida += lote.carga
 
                 if self.descarga.lineas_desocupadas() and \
                    self.sorting.lineas_desocupadas():
@@ -156,8 +170,9 @@ class Planta:
                           f'terminará en T = {evento.tiempo}')
                     self.lista_eventos.add(evento)
                 else:
-                    print(f'Se desecha Lote({evento_simulacion.lote.id}) por no'
-                          f' existir líneas desocupadas en el área de sorting.')
+                    evento_perdida = Evento(self.reloj, evento_simulacion.lote,
+                                            'perdida_carga', sorting=1)
+                    self.lista_eventos.add(evento_perdida)
 
             if evento_simulacion.tipo == 'termina_sorting':
                 id = evento_simulacion.lote.id
@@ -193,11 +208,17 @@ class Planta:
                 lote = evento_simulacion.lote
                 evento_cierre_modulo = self.secado.recibir_lote(lote,
                                                                 self.reloj)
+
+                for n, secador in self.secado.secadores.items():
+                    if secador.hibridos_contenidos:
+                        print(f'Secador({n}): {secador.hibridos_contenidos}')
+
                 if evento_cierre_modulo is not None:
                     self.lista_eventos.add(evento_cierre_modulo)
 
+            if evento_simulacion.tipo == 'comienza_secado_por_tiempo' \
+               or evento_simulacion.tipo == 'comienza_secado_por_capacidad':
 
-            if evento_simulacion.tipo == 'comienza_secado':
                 n, m = evento_simulacion.secador, evento_simulacion.modulo
                 evento_termina_secado = \
                     self.secado.cerrar_modulo(n, m, self.reloj)
@@ -209,29 +230,87 @@ class Planta:
                       f'{evento_termina_secado.tiempo}.')
 
             if evento_simulacion.tipo == 'termina_secado':
+
                 # Falta agregar que módulos se cierren por capacidad o tiempo.
                 # y que un evento cancele al otro.
-                if 'desgrane desocupado':
-                    x = 'generar evento vaciar secador'
+                n, m = evento_simulacion.secador, evento_simulacion.modulo
+                if self.secado.secadores[n].modulos[m].lote_mezclado is None:
+                    raise ValueError(f'No hay carga en Módulo({m}) '
+                                     f'de Secador({n}).\n')
 
-            if evento_simulacion.tipo == 'vacia_secado':
-                x = 'generar evento comienza desgrane'
+                self.secado.abrir_modulo(n, m, self.reloj)
+                print('Terminando secado. Esperando descarga: ', end='')
+                print(self.secado.esperando_descarga)
+
+                linea_desgrane = self.desgrane.linea_disponible()
+                if linea_desgrane is not None:
+                    evento_comienza_desgrane =\
+                        self.desgrane.comenzar_desgrane(self.reloj)
+                    self.lista_eventos.add(evento_comienza_desgrane)
 
             if evento_simulacion.tipo == 'comienza_desgrane':
-                x = 'generar evento termina desgrane'
+                n, m, lote = self.secado.esperando_descarga.pop()
+                print('Comenzando desgrane. Esperando descarga: ', end='')
+                print(self.secado.esperando_descarga)
+
+                evento_termina_desgrane =\
+                    self.desgrane.recibir_lote(lote, n, m, self.reloj)
+                self.lista_eventos.add(evento_termina_desgrane)
 
             if evento_simulacion.tipo == 'termina_desgrane':
+                n, m = evento_simulacion.secador, evento_simulacion.modulo
+                l = evento_simulacion.desgrane
+                print(f'Terminando desgrane por LíneaDesgrane({l}).')
+
+                evento_vaciar_modulo =\
+                    self.desgrane.terminar_desgrane(l, n, m, self.reloj)
+                self.lista_eventos.add(evento_vaciar_modulo)
+
+                lote = evento_simulacion.lote
+                self.hibridos_procesados[lote.tipo] += lote.carga
+                self.toneladas_procesadas += lote.carga
+                print(f'Agregando LoteMezclado(ID = {lote.id}; '
+                      f'Carga = {lote.carga}) a la lista de lotes procesados.')
+                print(f'Componentes: {[c.carga for c in lote.componentes]}')
+                print(f'Carga procesada: {self.toneladas_procesadas} tons.')
+
+
+                linea_desgrane = self.desgrane.linea_disponible()
+                if linea_desgrane is not None:
+                    if self.secado.esperando_descarga:
+                        evento_comienza_desgrane = \
+                            self.desgrane.comenzar_desgrane(self.reloj)
+                        self.lista_eventos.add(evento_comienza_desgrane)
+
+            if evento_simulacion.tipo == 'vaciar_modulo':
+                n, m = evento_simulacion.secador, evento_simulacion.modulo
+                self.secado.vaciar_modulo(n, m, self.reloj)
+
+                for n, secador in self.secado.secadores.items():
+                    if secador.hibridos_contenidos:
+                        print(f'Secador({n}): {secador.hibridos_contenidos}')
+
                 x = 'deshacerse del lote y actualizar medidas de desempeño'
 
-            print()
-            print_eventos_pendientes = False
-            if print_eventos_pendientes:
-                print('EVENTOS PENDIENTES: ', end='')
-                lista = [(evento.tipo, f'T = {evento.tiempo}')
-                         for evento in reversed(self.lista_eventos)]
-                print(lista)
-                print()
+            if evento_simulacion.tipo == 'perdida_carga':
+                lote = evento_simulacion.lote
+                print(f'Se pierden {lote.carga} toneladas de híbrido de tipo '
+                      f'{lote.tipo} por no existir ', end='')
+                if evento_simulacion.sorting:
+                    print('líneas desocupadas en el área de sorting.')
+                elif evento_simulacion.secado:
+                    print('no existir módulos disponibles en el área de secado.'
+                          )
+                self.carga_perdida += lote.carga
+
+            tiempo_anterior = self.reloj
+
             print('-------------------------')
             print()
 
+        print(f'Tons recibidas: {self.carga_recibida}')
+        print(f'Tons procesadas: {self.toneladas_procesadas}')
+        print(f'Tons perdidas: {self.carga_perdida}')
+        print(f'Suma: {self.toneladas_procesadas + self.carga_perdida}')
+        print()
         print('FIN DE LA SIMULACIÓN.')

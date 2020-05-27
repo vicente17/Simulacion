@@ -2,6 +2,8 @@ import numpy as np
 from random import shuffle, sample
 from parameters import *
 
+
+
 ################################################################################
 '''
 Funciones auxiliares.
@@ -79,8 +81,8 @@ def limpieza_hibrido_descarga():
                                 tiempo_limpieza_descarga_high)
 
 def limpieza_hibrido_desgrane():
-    return np.random.uniform(tiempo_limpieza_sorting_low,
-                             tiempo_limpieza_sorting_high)
+    return np.random.uniform(tiempo_limpieza_desgrane_low,
+                             tiempo_limpieza_desgrane_high)
 
 
 ################################################################################
