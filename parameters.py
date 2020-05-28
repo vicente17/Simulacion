@@ -4,13 +4,25 @@ en el momento de realizar el análisis de sensibilidad.
 
 Los tiempos y tasas de llegada serán tratados en horas, los pesos serán tratados
 en toneladas.
+
+CONSIDERACIONES:
+- Comienzo de los días coincide con el comienzo de los turnos (T=0 son las 10
+  AM)
+- Los turnos sólo afectan el periodo en que llegan camiones.
+- Cierre de módulos dado únicamente por tiempo de espera.
+- Camiones pueden esperar una cantidad infinita de tiempo.
+- Proceso parte un lunes; el domingo no llegan camiones, aunque lo demás
+  continúa normalmente.
+- Se considera que se comienza a descargar cuando se desocupa una línea de
+  descarga o llega un camión y además existe una línea de sorting disponible.
+- No se hace diferencia entre híbridos GMO y No-GMO.
 '''
 
 cantidad_dias_simulacion = 28  # días
 
 duracion_turno = 14  # horas
 
-tasa_llegada = 18/duracion_turno  # llegadas/hora
+tasa_llegada = 90/duracion_turno  # llegadas/hora
 
 carga_minima = 10.5  # toneladas
 carga_maxima = 21  # toneladas
@@ -42,7 +54,7 @@ velocidad_sorting_manual = 4  # toneladas/hora
 '''
 Cambio velocidad secado para debuggear.
 '''
-velocidad_secado = 1.75  # unidades/hora
+velocidad_secado = 0.025  # unidades/hora
 velocidad_desgrane = 25  # toneladas/hora
 
 '''
@@ -59,12 +71,12 @@ cantidad_modulos_secador_5 = 3  # unidades
 Divido por 10 la capacidad para debuggear.
 '''
 
-capacidad_modulos_secador_1 = 130  # m^3
-capacidad_modulos_secador_2 = 200  # m^3
-capacidad_modulos_secador_3 = 174  # m^3
-capacidad_modulos_secador_4 = 228  # m^3
-capacidad_modulos_secador_5 = 228  # m^3
+capacidad_modulos_secador_1 = 1300  # m^3
+capacidad_modulos_secador_2 = 2000  # m^3
+capacidad_modulos_secador_3 = 1740  # m^3
+capacidad_modulos_secador_4 = 2280  # m^3
+capacidad_modulos_secador_5 = 2280  # m^3
 
 toneladas_cierre_modulo = 21  # toneladas
-#horas_cierre_modulo = 5  # horas
+horas_cierre_modulo = 7  # horas
 humedad_final_secado = 0.125

@@ -8,7 +8,9 @@ Clase que representa un evento que ocurre en la simulación.
 '''
 class Evento:
     def __init__(self, tiempo, lote, tipo, descarga=None, sorting=None,
-                 secador=None, modulo=None, desgrane=None, secado=None):
+                 secador=None, modulo=None, desgrane=None, secado=None,
+                 tiempo_limpieza=None):
+
         self.tiempo = tiempo
         self.lote = lote
         self.tipo = tipo
@@ -19,7 +21,7 @@ class Evento:
         self.secador = secador
         self.desgrane = desgrane
         self.secado = secado
-
+        self.tiempo_limpieza = tiempo_limpieza
 
 '''
 Entidad que representa un lote de maíz.
@@ -35,6 +37,10 @@ class Lote:
         self.carga = carga_camion()
         self.tiempo_llegada = tiempo_llegada
         self.id = self.generate_id()
+
+    def __repr__(self):
+        return f'(ID: {self.id}; Tipo: {self.tipo}; Tiempo llegada: ' \
+               f'{self.tiempo_llegada}; Carga: {self.carga})'
 
     def generate_id(self):
         Lote.id_counter += 1
@@ -93,7 +99,7 @@ class Linea:
     Retorna True si la linea está ocupada, False en caso contrario.
     '''
     def ocupada(self):
-        if self.lote_actual:
+        if self.lote_actual is not None:
             return True
         return False
 
@@ -123,7 +129,7 @@ class LineaDescarga(Linea):
         super().__init__()
         self.gmo = gmo  # indica si es una línea correspondiente a GMO o No-GMO.
         self.velocidad = velocidad_descarga
-        self.tiempo_final_descarga = float('inf')
+        # self.tiempo_final_descarga = float('inf')
 
     '''
     Retorna el tiempo de limpieza correspondiente a cambio de híbrido.
@@ -154,7 +160,7 @@ class LineaSorting(Linea):
         super().__init__()
         self.velocidad = velocidad_sorting_automatico if automatica \
                          else velocidad_sorting_manual
-        self.tiempo_final_sorting = float('inf')
+        # self.tiempo_final_sorting = float('inf')
 
 
 '''
@@ -251,7 +257,8 @@ class Descarga:
     líneas, y sus values son los números de las líneas correspondientes.
     '''
     def hibridos_pasando(self):
-        return {linea.tipo_hibrido: n for n, linea in self.lineas.items()}
+        return {linea.tipo_hibrido: n for n, linea in self.lineas.items()
+                if linea.tipo_hibrido is not None}
 
     '''
     Retorna (Lote(), num_línea) correspondiente al lote que debe pasar más
@@ -269,6 +276,8 @@ class Descarga:
         for lote in self.cola:
             if lote.tipo in hibridos_pasando:
                 linea_correspondiente = hibridos_pasando[lote.tipo]
+                if linea_correspondiente not in self.lineas_desocupadas():
+                    continue
                 self.cola = list(self.cola)
                 x = self.cola.pop(indice)
                 self.cola = deque(self.cola)
@@ -284,9 +293,10 @@ class Descarga:
         for n, linea in self.lineas.items():
             if not linea.ocupada():
                 return n
-        raise ValueError('Todas las líneas están ocupadas.')
+        return None
+        #raise ValueError('Todas las líneas están ocupadas.')
 
-    def generar_evento_comienzo_descarga(self, clock, lote):
+    def generar_evento_comienzo_descarga(self, clock, lote=None):
         return Evento(clock, lote, 'comienza_descarga',)
 
     '''
@@ -297,14 +307,22 @@ class Descarga:
             return None
 
         lote, n = self.asignar_lote_siguiente()
+        arbitrario = False
         if n is None:
             n = self.asignar_linea_arbitraria()
+            if n is None:
+                return None
+            arbitrario = True
 
         linea = self.lineas[n]
         linea.lote_actual = lote
         linea.tipo_hibrido = lote.tipo
 
-        print(f'Se asigna Lote({lote.id}) a la línea de descarga {n}.')
+        print(f'Se asigna Lote({lote.id}) a la línea de descarga {n}. ', end='')
+        if arbitrario:
+            print('Esta asignación fue por orden de llegada.')
+        else:
+            print('Esta asignación fue por mismo tipo de híbrido.')
 
         tiempo_limpieza = 0
         if lote.tipo != linea.tipo_hibrido:
@@ -312,7 +330,8 @@ class Descarga:
         tiempo_procesamiento = linea.tiempo_en_pasar() + tiempo_limpieza
 
         return Evento(clock + tiempo_procesamiento, lote,
-                      'termina_descarga', descarga=n)
+                      'termina_descarga', tiempo_limpieza=tiempo_limpieza,
+                      descarga=n)
 
 
     '''
@@ -321,6 +340,7 @@ class Descarga:
     def terminar_descarga(self, lote, n, clock):
         self.lineas[n].desocupar()
         print(f'Desocupando línea de descarga {n}.')
+        print(f'Lineas de descarga desocupadas: {self.lineas_desocupadas()}')
         return Evento(clock, lote, 'comienza_sorting')
 
 
@@ -540,22 +560,22 @@ class Secador:
 
         self.hibridos_contenidos[lote.tipo].add(m)
 
-        '''
-        Lo comento para debuggear.
-        
         if first:
             tiempo_cierre = clock + horas_cierre_modulo
             print('Se genera evento de cierre de módulo por cumplimiento de '
                   f'tiempo. El módulo se cerrará en T <= {tiempo_cierre}.')
             return Evento(tiempo_cierre, None, 'comienza_secado_por_tiempo',
                           modulo=m)
-        '''
 
+        '''
+        No está considerado todavía.
+        
         if cumple_capacidad:
             print('Se genera evento de cierre de módulo por cumplimiento de '
                   f'capacidad. El módulo se cerrará en T = {clock}.')
             return Evento(clock, None, 'comienza_secado_por_capacidad',
                           modulo=m)
+        '''
         return None
 
 
@@ -601,6 +621,7 @@ class Secado:
                         if secador.modulos[m].carga + lote.carga <=\
                            secador.modulos[m].capacidad:
                             return n, m
+                    '''
                         print(f'No es posible cargar en Módulo({m}) de '
                               f'Secador({n}) por falta de capacidad.')
                     else:
@@ -610,6 +631,7 @@ class Secado:
                         if secador.modulos[m].estado == 'esperando_desgrane':
                             print(f'Secador({n}), Módulo({m}) '
                                   f'esperando desgrane.')
+                    '''
 
         return None
 
@@ -623,6 +645,7 @@ class Secado:
                     if not modulo.ocupado():
                         if lote.carga <= modulo.capacidad:
                             return n, m
+                    '''
                         print(f'No es posible cargar en Secador({n}), '
                               f'Módulo({m}) por falta de capacidad.')
                     else:
@@ -637,6 +660,7 @@ class Secado:
                             print(f'No es posible cargar en Secador({n}), '
                                   f'Módulo({m}) por contener lote seco.')
                     print(modulo.estado)
+                    '''
         return None
 
     '''
@@ -668,11 +692,11 @@ class Secado:
 
                 return Evento(clock, lote, 'perdida_carga', secado=1)
             n, m = disponibilidad
-            print(f'Dirigiendo Lote({lote.id}) de tipo {lote.tipo} azarosamente'
-                  f' a Secador({n}), Módulo({m}).')
+            print(f'Dirigiendo Lote({lote.id}) de tipo {lote.tipo} '
+                  f'arbitrariamente a Secador({n}), Módulo({m}).')
 
         evento = self.lote_a_secador(lote, n, m, clock)
-        print(f'Se asigna Lote({lote.id}) a Módulo({m}) en Secador({n}).')
+        #print(f'Se asigna Lote({lote.id}) a Módulo({m}) en Secador({n}).')
         return evento
 
     '''
