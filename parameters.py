@@ -18,11 +18,11 @@ CONSIDERACIONES:
 - No se hace diferencia entre híbridos GMO y No-GMO.
 '''
 
-cantidad_dias_simulacion = 13  # días
+cantidad_dias_simulacion = 28  # días
 
 duracion_turno = 14  # horas
 
-tasa_llegada = 36/duracion_turno  # llegadas/hora
+tasa_llegada = 54/duracion_turno  # llegadas/hora
 
 carga_minima = 10.5  # toneladas
 carga_maxima = 21  # toneladas
@@ -63,11 +63,11 @@ velocidad_desgrane = 25  # toneladas/hora
 Cambio las unidades para debuggear
 '''
 
-cantidad_modulos_secador_1 = 3  # unidades
-cantidad_modulos_secador_2 = 4  # unidades
-cantidad_modulos_secador_3 = 2  # unidades
+cantidad_modulos_secador_1 = 5  # unidades
+cantidad_modulos_secador_2 = 5  # unidades
+cantidad_modulos_secador_3 = 5  # unidades
 cantidad_modulos_secador_4 = 5  # unidades
-cantidad_modulos_secador_5 = 3  # unidades
+cantidad_modulos_secador_5 = 5  # unidades
 
 capacidad_modulos_secador_1 = 1300  # m^3
 capacidad_modulos_secador_2 = 2000  # m^3

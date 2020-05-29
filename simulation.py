@@ -392,30 +392,49 @@ class Planta:
                 # Falta agregar que módulos se cierren por capacidad o tiempo.
                 # y que un evento cancele al otro.
                 n, m = evento_simulacion.secador, evento_simulacion.modulo
-                if self.secado.secadores[n].modulos[m].lote_mezclado is None:
+                lote_mezclado =\
+                    self.secado.secadores[n].modulos[m].lote_mezclado
+                if lote_mezclado is None:
                     raise ValueError(f'No hay carga en Módulo({m}) '
                                      f'de Secador({n}).\n')
 
                 self.secado.abrir_modulo(n, m, self.reloj)
-                #print('Terminando secado.')
+                print('Terminando secado.')
                 print(f'{len(self.secado.esperando_descarga)} módulos '
                       f'esperando descarga.')
 
-                linea_desgrane = self.desgrane.linea_disponible()
+                gmo = lote_mezclado.gmo
+                indice = self.secado.gmo_esperando_descarga(gmo)
+
+                linea_desgrane = self.desgrane.linea_disponible(gmo)
+                print(f'linea desgrane = {linea_desgrane}')
                 if linea_desgrane is not None:
                     evento_comienza_desgrane =\
-                        self.desgrane.comenzar_desgrane(self.reloj)
+                        self.desgrane.comenzar_desgrane(self.reloj,
+                                                        indice=indice,
+                                                        desgrane=linea_desgrane)
                     self.lista_eventos.add(evento_comienza_desgrane)
 
             if evento_simulacion.tipo == 'comienza_desgrane':
-                n, m, lote = self.secado.esperando_descarga.pop()
-                print(f'Comenzando desgrane de LoteMezclado({lote.id}) desde'
+                indice = evento_simulacion.indice
+                linea = evento_simulacion.desgrane
+                print(f'linea = {linea}')
+                if indice is None:
+                    n, m, lote = self.secado.esperando_descarga.pop()
+
+                else:
+                    n, m, lote = self.secado.esperando_descarga.pop(indice)
+
+                print(f'n, m, lote = {n, m, lote}')
+
+                print(f'Comenzando desgrane de LoteMezclado({lote.id}) desde '
                       f'Módulo({m}) en Secador({n}).')
                 print(f'{len(self.secado.esperando_descarga)} otros módulos '
                       f'esperando descarga.')
 
                 evento_termina_desgrane =\
-                    self.desgrane.recibir_lote(lote, n, m, self.reloj)
+                    self.desgrane.recibir_lote(lote, n, m, self.reloj,
+                                               desgrane=linea)
                 self.lista_eventos.add(evento_termina_desgrane)
                 print(f'Agregando evento [termina desgrane de '
                       f'LoteMezclado({lote.id}) por '
@@ -423,12 +442,16 @@ class Planta:
                       f'de eventos. Desgrane terminará en T = '
                       f'{evento_termina_desgrane.tiempo}.')
 
+                #print(f'GMO: Lote -> {lote.gmo}, Línea -> {self.desgrane.lineas[l].gmo}')
+
                 self.lineas_desgrane_ocupadas += 1
 
             if evento_simulacion.tipo == 'termina_desgrane':
                 n, m = evento_simulacion.secador, evento_simulacion.modulo
                 l = evento_simulacion.desgrane
                 print(f'Terminando desgrane por Línea({l}).')
+
+                gmo_linea = self.desgrane.lineas[l].gmo
 
                 self.lineas_desgrane_ocupadas -= 1
 
@@ -447,15 +470,18 @@ class Planta:
                     self.tiempo_procesamiento += \
                         (self.reloj - componente.tiempo_llegada)
 
-                linea_desgrane = self.desgrane.linea_disponible()
-                if linea_desgrane is not None:
-                    if self.secado.esperando_descarga:
-                        evento_comienza_desgrane = \
-                            self.desgrane.comenzar_desgrane(self.reloj)
-                        self.lista_eventos.add(evento_comienza_desgrane)
-                        print('Agregando evento [comienza desgrane] a la lista '
-                              'de eventos. Desgrane comenzará en T = '
-                              f'{evento_comienza_desgrane.tiempo}')
+                indice = self.secado.gmo_esperando_descarga(gmo_linea)
+
+                if indice:
+                    evento_comienza_desgrane = \
+                        self.desgrane.comenzar_desgrane(self.reloj,
+                                                        indice=indice,
+                                                        desgrane=l)
+
+                    self.lista_eventos.add(evento_comienza_desgrane)
+                    print('Agregando evento [comienza desgrane] a la lista '
+                          'de eventos. Desgrane comenzará en T = '
+                          f'{evento_comienza_desgrane.tiempo}')
 
             if evento_simulacion.tipo == 'vaciar_modulo':
                 self.modulos_secado_ocupados -= 1

@@ -9,7 +9,7 @@ Clase que representa un evento que ocurre en la simulación.
 class Evento:
     def __init__(self, tiempo, lote, tipo, descarga=None, sorting=None,
                  secador=None, modulo=None, desgrane=None, secado=None,
-                 tiempo_limpieza=None, lote_perdido=None):
+                 tiempo_limpieza=None, lote_perdido=None, indice=None):
 
         self.tiempo = tiempo
         self.lote = lote
@@ -23,6 +23,7 @@ class Evento:
         self.secado = secado
         self.tiempo_limpieza = tiempo_limpieza
         self.lote_perdido = lote_perdido
+        self.indice = indice
 
 '''
 Entidad que representa un lote de maíz.
@@ -40,7 +41,8 @@ class Lote:
         self.id = self.generate_id()
 
     def __repr__(self):
-        return f'(ID: {self.id}; Tipo: {self.tipo}; Tiempo llegada: ' \
+        return f'(ID: {self.id}; Tipo: {self.tipo}; GMO: {self.gmo}; ' \
+               f'Tiempo llegada: ' \
                f'{self.tiempo_llegada}; Carga: {self.carga})'
 
     def generate_id(self):
@@ -143,8 +145,9 @@ class LineaDescarga(Linea):
 Clase que representa una línea de desgrane.
 '''
 class LineaDesgrane(Linea):
-    def __init__(self):
+    def __init__(self, gmo):
         super().__init__()
+        self.gmo = gmo
         self.velocidad = velocidad_desgrane
 
     def tiempo_limpieza_por_hibrido(self):
@@ -334,6 +337,13 @@ class Descarga:
             arbitrario = True
 
         linea = self.lineas[n]
+
+        tiempo_limpieza = 0
+        #print(f'Tipo hib: {lote.tipo}. Hib anterior: {linea.tipo_hibrido}.')
+        if lote.tipo != linea.tipo_hibrido and linea.tipo_hibrido is not None:
+            tiempo_limpieza += linea.tiempo_limpieza_por_hibrido()
+            print(f'Incluyendo tiempo de limpieza: {tiempo_limpieza}.')
+
         linea.lote_actual = lote
         linea.tipo_hibrido = lote.tipo
 
@@ -343,9 +353,6 @@ class Descarga:
         else:
             print('Esta asignación fue por mismo tipo de híbrido.')
 
-        tiempo_limpieza = 0
-        if lote.tipo != linea.tipo_hibrido:
-            tiempo_limpieza += linea.tiempo_limpieza_por_hibrido()
         tiempo_procesamiento = linea.tiempo_en_pasar() + tiempo_limpieza
 
         return Evento(clock + tiempo_procesamiento, lote,
@@ -406,6 +413,7 @@ class Sorting:
 
         tiempo_procesamiento = linea.tiempo_en_pasar()
 
+
         print(f'Se asigna Lote({lote.id}) a la línea de sorting {n}.')
 
         return Evento(clock + tiempo_procesamiento, lote,
@@ -419,10 +427,6 @@ class Sorting:
         self.lineas[n].desocupar()
         print(f'Desocupando línea de sorting {n}.')
         return Evento(clock, lote, 'llenar_modulo')
-
-
-
-
 
 '''
 Clase que representa un módulo de un secador.
@@ -487,6 +491,8 @@ class Modulo:
     Agrega un lote al LoteMezclado en el módulo.
     '''
     def cargar(self, lote, clock=None):
+        if lote.gmo != self.gmo:
+            raise ValueError('Cargando GMO incorrecto.')
         if self.estado != 'esperando_carga':
             raise ValueError('Cargando en estado incorrecto.')
 
@@ -626,13 +632,26 @@ class Secado:
                 5: secador_1}
 
     '''
+    Retorna el índice del primer contador con gmo específico esperando en la
+    cola de descarga.
+    '''
+    def gmo_esperando_descarga(self, gmo):
+        contador = len(self.esperando_descarga) - 1
+        for n, m, lote in reversed(self.esperando_descarga):
+            if lote.gmo == gmo:
+                return contador
+            contador -= 1
+        return None
+
+    '''
     Retorna tupla (n_secador, m_módulo) según dónde deba dirigirse el lote. Si
     no hay una dirección específica, retorna None.
     '''
     def dirigir_especifico(self, lote):
         for n, secador in self.secadores.items():
             lista_modulos = {}
-            if lote.tipo in secador.hibridos_contenidos:
+            if lote.tipo in secador.hibridos_contenidos \
+                    and lote.gmo == secador.gmo:
                 lista_modulos = secador.hibridos_contenidos[lote.tipo]
             if lista_modulos:
                 for m in lista_modulos:
@@ -640,18 +659,6 @@ class Secado:
                         if secador.modulos[m].carga + lote.carga <=\
                            secador.modulos[m].capacidad:
                             return n, m
-                    '''
-                        print(f'No es posible cargar en Módulo({m}) de '
-                              f'Secador({n}) por falta de capacidad.')
-                    else:
-                        if secador.modulos[m].estado == 'secando':
-                            print(f'Secador({n}), Módulo({m}) '
-                                  f'en funcionamiento.')
-                        if secador.modulos[m].estado == 'esperando_desgrane':
-                            print(f'Secador({n}), Módulo({m}) '
-                                  f'esperando desgrane.')
-                    '''
-
         return None
 
     '''
@@ -659,27 +666,11 @@ class Secado:
     '''
     def asignar_segun_disponibilidad(self, lote):
         for n, secador in self.secadores.items():
-            if secador.modulos_vacios:
+            if secador.modulos_vacios and secador.gmo == lote.gmo:
                 for m, modulo in secador.modulos.items():
                     if not modulo.ocupado():
                         if lote.carga <= modulo.capacidad:
                             return n, m
-                    '''
-                        print(f'No es posible cargar en Secador({n}), '
-                              f'Módulo({m}) por falta de capacidad.')
-                    else:
-                        if modulo.estado == 'secando':
-                            print(f'No es posible cargar en Secador({n}), '
-                                  f'Módulo({m}) por estar en funcionamiento.')
-                        if modulo.estado == 'esperando_carga':
-                            print(f'No es posible cargar en Secador({n}), '
-                                  f'Módulo({m}) por estar ocupado con otro '
-                                  f'tipo.')
-                        if modulo.estado == 'esperando_desgrane':
-                            print(f'No es posible cargar en Secador({n}), '
-                                  f'Módulo({m}) por contener lote seco.')
-                    print(modulo.estado)
-                    '''
         return None
 
     '''
@@ -769,40 +760,55 @@ class Desgrane:
     Creación de las 2 lineas de desgrane.
     '''
     def generar_lineas_desgrane(self):
-        return {1: LineaDesgrane(), 2: LineaDesgrane()}
+        return {1: LineaDesgrane(True), 2: LineaDesgrane(False)}
 
     '''
-    Retorna el número de la primera línea desocupada. Si no hay disponibilidad, 
-    retorna None.
+    Retorna el número de la primera línea con GMO requerido desocupada. Si no
+    hay disponibilidad, retorna None.
     '''
-    def linea_disponible(self):
+    def linea_disponible(self, gmo=None):
         for l, linea in self.lineas.items():
             if not linea.ocupada():
-                return l
+                if gmo is not None:
+                    if linea.gmo == gmo:
+                        return l
+                else:
+                    return l
         return None
 
     '''
     Retorna evento comenzar desgrane.
     '''
-    def comenzar_desgrane(self, clock):
-        return Evento(clock, None, 'comienza_desgrane')
+    def comenzar_desgrane(self, clock, indice=None, desgrane=None):
+        return Evento(clock, None, 'comienza_desgrane', indice=indice,
+                      desgrane=desgrane)
 
     '''
     Comienza el proceso de desgrane. Retorna evento de término de desgrane.
     '''
-    def recibir_lote(self, lote, n, m, clock):
-        l = self.linea_disponible()
+    def recibir_lote(self, lote, n, m, clock, desgrane=None):
+        l = desgrane
         if l is None:
-            raise ValueError('Comenzando desgrane sin tener línea disponible.')
+            print('l is None 1')
+            l = self.linea_disponible(lote.gmo)
+            if l is None:
+                raise ValueError('Comenzando desgrane sin tener'
+                                 'línea disponible.')
+        print(f'l = {l}')
         linea = self.lineas[l]
+        print(f'Linea({l}), GMO={linea.gmo}; Lote{lote}')
+        if linea.gmo != lote.gmo:
+            raise ValueError('GMO no compatible en desgrane.')
         tipo_anterior = linea.tipo_hibrido
 
         linea.lote_actual = lote
         linea.tipo_hibrido = lote.tipo
 
         tiempo_limpieza = 0
-        if linea.tipo_hibrido != tipo_anterior:
-            tiempo_limpieza = limpieza_hibrido_desgrane()
+        print(f'Tipo hib: {linea.tipo_hibrido}. Tipo anterior: {tipo_anterior}')
+        if linea.tipo_hibrido != tipo_anterior and tipo_anterior is not None:
+            tiempo_limpieza = linea.tiempo_limpieza_por_hibrido()
+            print(f'Incluyendo tiempo de limpieza {tiempo_limpieza}.')
         tiempo_termino = clock + linea.tiempo_en_pasar() + tiempo_limpieza
 
         return Evento(tiempo_termino,  lote, 'termina_desgrane',
