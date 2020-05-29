@@ -271,9 +271,14 @@ class Descarga:
     
     No considera GMO/No-GMO.
     '''
-    def asignar_lote_siguiente(self):
+    def asignar_lote_siguiente(self, clock):
         if not len(self.cola):
             raise ValueError('Intentando asignar un lote inexistente')
+
+        if elegir_por_tiempo:
+            if clock - self.cola[0].tiempo_llegada >=\
+                    tolerancia_espera_cola * porcentaje_espera:
+                return self.cola.popleft(), None
 
         indice = 0
         hibridos_pasando = self.hibridos_pasando()
@@ -328,7 +333,7 @@ class Descarga:
         if not self.lineas_desocupadas():
             return None
 
-        lote, n = self.asignar_lote_siguiente()
+        lote, n = self.asignar_lote_siguiente(clock)
         arbitrario = False
         if n is None:
             n = self.asignar_linea_arbitraria()

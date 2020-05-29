@@ -16,6 +16,7 @@ class Planta:
 
         self.hibridos_procesados = defaultdict(int)
         self.lotes_descargados = set()
+        self.en_jornada = False
 
         '''
         Medidas de desempeño.
@@ -31,6 +32,7 @@ class Planta:
         self.tiempo_procesamiento = 0
         self.lotes_procesados = 0
         self.tiempo_espera = 0
+        self.largo_cola = 0
         self.camiones_descargados = 0
 
         self.lineas_descarga_ocupadas = 0
@@ -60,6 +62,19 @@ class Planta:
         return Evento((self.reloj//24)*24 + 24, None, 'siguiente_dia')
 
     '''
+    Método que retorna un Evento de comienzo de turno.
+    '''
+    def comienza_turno(self):
+        return Evento(self.reloj, None, 'comienza_turno')
+
+    '''
+    Método que retorna un Evento de finalización de turno.
+    '''
+    def termina_turno(self):
+        return Evento(self.reloj + duracion_turno - 0.000000000000001, None,
+                      'termina_turno')
+
+    '''
     Método que retorna un evento de pérdida por exceso de tiempo en la cola.
     '''
     def perdida_por_espera(self, clock, lote):
@@ -80,6 +95,7 @@ class Planta:
         self.ocupacion_sorting += tiempo * self.lineas_sorting_ocupadas
         self.ocupacion_secado += tiempo * self.modulos_secado_ocupados
         self.ocupacion_desgrane += tiempo * self.lineas_desgrane_ocupadas
+        self.largo_cola += tiempo * len(self.descarga.cola)
 
     '''
     Método que muestra los resultados de la simulacion.
@@ -100,15 +116,17 @@ class Planta:
         print(f'- Tons perdidas en sorting: {self.carga_perdida_sorting:.3f}')
         print(f'- Tons perdidas en secado: {self.carga_perdida_secado:.3f}')
 
-
         print(f'Camiones recibidos: {self.cantidad_camiones}')
         tipos_hibrido = list(self.hibridos_procesados.keys())
         print(f'Cantidad de tipos de híbrido recibidos: {len(tipos_hibrido)}')
 
         print()
-
-        print(f'Tiempo de procesamiento promedio: '
-              f'{(self.tiempo_procesamiento / self.lotes_procesados):.3f}')
+        try:
+            print(f'Tiempo de procesamiento promedio: '
+                  f'{(self.tiempo_procesamiento / self.lotes_procesados):.3f}')
+        except ZeroDivisionError:
+            print(f'Tiempo de procesamiento no se puede calcular: ningún lote '
+                  f'ha sido procesado. ')
         print(f'Tons promedio recibidas por día: '
               f'{(self.carga_recibida / dias):.3f}')
         print(f'Tons promedio procesadas por día: '
@@ -121,6 +139,7 @@ class Planta:
               f'{(self.carga_perdida_secado / dias):.3f}')
         print(f'Tons totales promedio perdidas por día: '
               f'{(self.carga_perdida / dias):.3f}')
+        print(f'Largo promedio de cola: {(self.largo_cola/self.reloj):.3f}')
         print(f'Tiempo promedio de espera camiones: '
               f'{(self.tiempo_espera / self.camiones_descargados):.3f}')
 
@@ -201,6 +220,12 @@ class Planta:
                           f'{evento_siguiente_dia.tiempo}.')
                     self.lista_eventos.add(evento_siguiente_dia)
 
+                    evento_comienzo_turno = self.comienza_turno()
+                    print("Agregando evento [comienzo_turno] a la lista de "
+                          'eventos. Turno comenzará en T = '
+                          f'{evento_comienzo_turno.tiempo}.')
+                    self.lista_eventos.add(evento_comienzo_turno)
+
             if evento_simulacion.tipo == 'llegada_camion':
                 lote = evento_simulacion.lote
                 print(f'Llegando Lote: (ID = {lote.id}; Tipo = {lote.tipo}; '
@@ -222,7 +247,8 @@ class Planta:
                       f' en la cola.')
 
                 if self.descarga.lineas_desocupadas() and \
-                   self.sorting.lineas_desocupadas():
+                   self.sorting.lineas_desocupadas() and self.en_jornada:
+
                     evento_comienza_descarga = \
                     self.descarga.generar_evento_comienzo_descarga(self.reloj,
                                                                    lote)
@@ -292,7 +318,8 @@ class Planta:
                       f'{evento_inicio_sorting.tiempo}.')
                 self.lista_eventos.add(evento_inicio_sorting)
 
-                if self.descarga.cola and self.sorting.lineas_desocupadas():
+                if self.descarga.cola and self.sorting.lineas_desocupadas() \
+                        and self.en_jornada:
 
                     evento_comienza_descarga = \
                         self.descarga.generar_evento_comienzo_descarga(
@@ -344,7 +371,9 @@ class Planta:
                       f'eventos. Llenado de módulo se ejecutará en T = '
                       f'{evento_llenar_modulo.tiempo}.')
 
-                if self.descarga.cola and self.sorting.lineas_desocupadas():
+                if self.descarga.cola and self.sorting.lineas_desocupadas() \
+                        and self.descarga.lineas_desocupadas() and \
+                    self.en_jornada:
 
                     evento_comienza_descarga = \
                         self.descarga.generar_evento_comienzo_descarga(
@@ -498,9 +527,6 @@ class Planta:
                 lote = evento_simulacion.lote
 
                 if evento_simulacion.lote_perdido is not None:
-                    #print(f'Cola: {self.descarga.cola}')
-                    #print(f'Camiones: {self.camiones_descargados}')
-                    #print(f'Hibridos descargados: {self.lotes_descargados}')
                     if evento_simulacion.lote_perdido \
                             not in self.lotes_descargados:
                         print(
@@ -532,6 +558,29 @@ class Planta:
                           )
                     self.carga_perdida_secado += lote.carga
                     self.carga_perdida += lote.carga
+
+            if evento_simulacion.tipo == 'comienza_turno':
+                print('Comenzando turno. ')
+                print(f'Camiones en cola: {len(self.descarga.cola)}')
+                self.en_jornada = True
+                evento_termino_turno = self.termina_turno()
+                self.lista_eventos.add(evento_termino_turno)
+                print("Agregando evento [termina_turno] a la lista de "
+                      'eventos. Turno terminará en T = '
+                      f'{evento_termino_turno.tiempo}.')
+
+                if self.descarga.cola and self.descarga.lineas_desocupadas():
+                    evento_comienzo_descarga = \
+                            self.descarga.generar_evento_comienzo_descarga(
+                                self.reloj)
+                    self.lista_eventos.add(evento_comienzo_descarga)
+                    print('Agregando evento [comienza descarga] a la lista de'
+                          ' eventos. Descarga comenzará en T = '
+                          f'{evento_comienzo_descarga.tiempo}')
+
+            if evento_simulacion.tipo == 'termina_turno':
+                print('Terminando turno. ')
+                self.en_jornada = False
 
             tiempo_anterior = self.reloj
 

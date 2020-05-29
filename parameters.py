@@ -6,23 +6,18 @@ Los tiempos y tasas de llegada serán tratados en horas, los pesos serán tratad
 en toneladas.
 
 CONSIDERACIONES:
-- Comienzo de los días coincide con el comienzo de los turnos (T=0 son las 10
-  AM)
-- Los turnos sólo afectan el periodo en que llegan camiones.
+- Comienzo de los días coincide con el comienzo de los turnos.
 - Cierre de módulos dado únicamente por tiempo de espera.
-- Camiones pueden esperar una cantidad infinita de tiempo.
-- Proceso parte un lunes; el domingo no llegan camiones, aunque lo demás
-  continúa normalmente.
+- Proceso parte un lunes; el domingo no hay jornada laboral.
 - Se considera que se comienza a descargar cuando se desocupa una línea de
   descarga o llega un camión y además existe una línea de sorting disponible.
-- No se hace diferencia entre híbridos GMO y No-GMO.
 '''
 
 cantidad_dias_simulacion = 7  # días
 
 duracion_turno = 14  # horas
 
-tasa_llegada = 1800/duracion_turno  # llegadas/hora
+tasa_llegada = 36/duracion_turno  # llegadas/hora
 
 carga_minima = 10.5  # toneladas
 carga_maxima = 21  # toneladas
@@ -37,6 +32,13 @@ tipos_hibrido_minimo = 6  # unidades
 tipos_hibrido_maximo = 12  # unidades
 
 tolerancia_espera_cola = 12  # horas
+
+'''
+Parámetro que indica si elegimos descargar primero un camión que está más de
+tolerancia_espera_cola * porcentaje_espera horas en la cola.
+'''
+elegir_por_tiempo = True
+porcentaje_espera = 0.75
 
 tiempo_limpieza_descarga_low = 20/60  # horas
 tiempo_limpieza_descarga_mid = 30/60  # horas
