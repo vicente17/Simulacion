@@ -33,6 +33,20 @@ class Planta:
         self.tiempo_espera = 0
         self.camiones_descargados = 0
 
+        self.lineas_descarga_ocupadas = 0  # len(self.descarga.lineas)
+        self.ocupacion_descarga = 0
+
+        self.lineas_sorting_ocupadas = 0  # len(self.sorting.lineas)
+        self.ocupacion_sorting = 0
+
+        self.modulos_secado_ocupados = 0
+            # sum([len(secador.modulos) for secador in self.secado.secadores])
+        self.ocupacion_secado = 0
+
+        self.lineas_desgrane_ocupadas = 0  # len(self.desgrane.lineas)
+        self.ocupacion_desgrane = 0
+
+
         '''
         Lista que permanece siempre ordenada decrecientemente según el atributo
         tiempo de la clase Evento. Para agregar un elemento, lista.add(elem).
@@ -62,8 +76,11 @@ class Planta:
     '''
     Método que resetea las medidas de desempeño de la simulación.
     '''
-    def actualizar_estadisticas(self):
-        pass
+    def actualizar_tiempos_ocupacion(self, tiempo):
+        self.ocupacion_descarga += tiempo * self.lineas_descarga_ocupadas
+        self.ocupacion_sorting += tiempo * self.lineas_sorting_ocupadas
+        self.ocupacion_secado += tiempo * self.modulos_secado_ocupados
+        self.ocupacion_desgrane += tiempo * self.lineas_desgrane_ocupadas
 
     '''
     Método que muestra los resultados de la simulacion.
@@ -106,6 +123,26 @@ class Planta:
         print(f'Tiempo promedio de espera camiones: '
               f'{(self.tiempo_espera / self.camiones_descargados):.3f}')
 
+        print()
+
+        ctd_lineas_descarga = len(self.descarga.lineas)
+        print(f'Ocupación de líneas de descarga: '
+              f'{self.ocupacion_descarga/(self.reloj * ctd_lineas_descarga)}')
+
+        ctd_lineas_sorting = len(self.sorting.lineas)
+        print(f'Ocupación de líneas de sorting: '
+              f'{self.ocupacion_sorting/(self.reloj * ctd_lineas_sorting)}')
+
+        ctd_modulos_secado = sum([len(secador.modulos) for
+                                  secador in self.secado.secadores.values()])
+
+        print(f'Ocupación de módulos de secado: '
+              f'{self.ocupacion_secado/(self.reloj * ctd_modulos_secado)}')
+
+        ctd_lineas_desgrane = len(self.desgrane.lineas)
+        print(f'Ocupación de líneas de desgrane: '
+              f'{self.ocupacion_desgrane/(self.reloj * ctd_lineas_desgrane)}')
+
     '''
     Método que echa a correr la simulación.
     '''
@@ -123,15 +160,14 @@ class Planta:
 
         tiempo_anterior = self.reloj
         while self.reloj < tiempo_simulacion:
-
-            #if tiempo_anterior != self.reloj:
-            #    self.actualizar_estadisticas()
-
             evento_simulacion = self.lista_eventos.pop()
             self.reloj = evento_simulacion.tiempo
 
-            if self.reloj >= tiempo_simulacion:
-                break
+            diferencia = self.reloj - tiempo_anterior
+            if diferencia > 0:
+                self.actualizar_tiempos_ocupacion(diferencia)
+
+                pass
 
             print(f'T = {self.reloj}')
             print(f'EJECUTANDO EVENTO: [{evento_simulacion.tipo}]\n')
@@ -223,6 +259,8 @@ class Planta:
                 '''
 
                 if evento_fin_descarga is not None:
+                    self.lineas_descarga_ocupadas += 1
+
                     id = evento_fin_descarga.lote.id
                     print(f'Comenzando descarga de Lote('
                           f'{evento_fin_descarga.lote.id}) por línea '
@@ -242,6 +280,8 @@ class Planta:
                         (self.reloj - evento_fin_descarga.lote.tiempo_llegada)
 
             if evento_simulacion.tipo == 'termina_descarga':
+                self.lineas_descarga_ocupadas -= 1
+
                 lote, n = evento_simulacion.lote, evento_simulacion.descarga
                 print(f'Descarga de lote {lote.id} por línea {n} terminada.')
                 evento_inicio_sorting = self.descarga.terminar_descarga(
@@ -268,6 +308,9 @@ class Planta:
                     evento =\
                         self.sorting.comenzar_sorting(evento_simulacion.lote,
                                                       self.reloj)
+
+                    self.lineas_sorting_ocupadas += 1
+
                     print(f'Comenzando proceso de sorting de lote'
                           f' {evento.lote.id}.')
                     print(f'Agregando evento [termina sorting de Lote('
@@ -283,6 +326,8 @@ class Planta:
                     self.lista_eventos.add(evento_perdida)
 
             if evento_simulacion.tipo == 'termina_sorting':
+                self.lineas_sorting_ocupadas -= 1
+
                 id = evento_simulacion.lote.id
                 print(f'Terminando proceso de sorting de Lote({id})')
 
@@ -325,6 +370,7 @@ class Planta:
                 '''
 
                 if evento_cierre_modulo is not None:
+                    self.modulos_secado_ocupados += 1
                     self.lista_eventos.add(evento_cierre_modulo)
 
             if evento_simulacion.tipo == 'comienza_secado_por_tiempo' \
@@ -376,10 +422,14 @@ class Planta:
                       f'de eventos. Desgrane terminará en T = '
                       f'{evento_termina_desgrane.tiempo}.')
 
+                self.lineas_desgrane_ocupadas += 1
+
             if evento_simulacion.tipo == 'termina_desgrane':
                 n, m = evento_simulacion.secador, evento_simulacion.modulo
                 l = evento_simulacion.desgrane
                 print(f'Terminando desgrane por Línea({l}).')
+
+                self.lineas_desgrane_ocupadas -= 1
 
                 evento_vaciar_modulo =\
                     self.desgrane.terminar_desgrane(l, n, m, self.reloj)
@@ -407,6 +457,7 @@ class Planta:
                               f'{evento_comienza_desgrane.tiempo}')
 
             if evento_simulacion.tipo == 'vaciar_modulo':
+                self.modulos_secado_ocupados -= 1
                 n, m = evento_simulacion.secador, evento_simulacion.modulo
                 self.secado.vaciar_modulo(n, m, self.reloj)
 
