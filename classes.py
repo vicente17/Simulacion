@@ -128,7 +128,7 @@ SUPUESTO: no existe limpieza en relación a GMO.
 class LineaDescarga(Linea):
     def __init__(self, gmo):
         super().__init__()
-        self.gmo = gmo  # indica si es una línea correspondiente a GMO o No-GMO.
+        # self.gmo = gmo
         self.velocidad = velocidad_descarga
         # self.tiempo_final_descarga = float('inf')
 

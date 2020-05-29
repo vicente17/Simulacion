@@ -33,17 +33,16 @@ class Planta:
         self.tiempo_espera = 0
         self.camiones_descargados = 0
 
-        self.lineas_descarga_ocupadas = 0  # len(self.descarga.lineas)
+        self.lineas_descarga_ocupadas = 0
         self.ocupacion_descarga = 0
 
-        self.lineas_sorting_ocupadas = 0  # len(self.sorting.lineas)
+        self.lineas_sorting_ocupadas = 0
         self.ocupacion_sorting = 0
 
         self.modulos_secado_ocupados = 0
-            # sum([len(secador.modulos) for secador in self.secado.secadores])
         self.ocupacion_secado = 0
 
-        self.lineas_desgrane_ocupadas = 0  # len(self.desgrane.lineas)
+        self.lineas_desgrane_ocupadas = 0
         self.ocupacion_desgrane = 0
 
 
@@ -90,16 +89,18 @@ class Planta:
 
         print(f'Tons recibidas: {self.carga_recibida:.3f}')
         print(f'Tons procesadas: {self.toneladas_procesadas:.3f}')
-        print(f'Tons perdidas en cola: {self.carga_perdida_espera:.3f}')
-        print(f'Tons perdidas en sorting: {self.carga_perdida_sorting:.3f}')
-        print(f'Tons perdidas en secado: {self.carga_perdida_secado:.3f}')
-        print(f'Tons totales perdidas: {self.carga_perdida:.3f}')
         tons_en_proceso = self.carga_recibida - self.carga_perdida - \
                           self.toneladas_procesadas
         if tons_en_proceso < 0:
             tons_en_proceso = 0
         print(f'Tons en proceso: '
               f'{tons_en_proceso:.3f}')
+        print(f'Tons perdidas: {self.carga_perdida:.3f}')
+        print(f'- Tons perdidas en cola: {self.carga_perdida_espera:.3f}')
+        print(f'- Tons perdidas en sorting: {self.carga_perdida_sorting:.3f}')
+        print(f'- Tons perdidas en secado: {self.carga_perdida_secado:.3f}')
+
+
         print(f'Camiones recibidos: {self.cantidad_camiones}')
         tipos_hibrido = list(self.hibridos_procesados.keys())
         print(f'Cantidad de tipos de híbrido recibidos: {len(tipos_hibrido)}')
@@ -155,7 +156,7 @@ class Planta:
 
         print('INICIO DE LA SIMULACIÓN.')
         print()
-        print('--------------------------------------------------')
+        print('-------------------------')
         print()
 
         tiempo_anterior = self.reloj
@@ -471,9 +472,9 @@ class Planta:
                 lote = evento_simulacion.lote
 
                 if evento_simulacion.lote_perdido is not None:
-                    print(f'Cola: {self.descarga.cola}')
-                    print(f'Camiones: {self.camiones_descargados}')
-                    print(f'Hibridos descargados: {self.lotes_descargados}')
+                    #print(f'Cola: {self.descarga.cola}')
+                    #print(f'Camiones: {self.camiones_descargados}')
+                    #print(f'Hibridos descargados: {self.lotes_descargados}')
                     if evento_simulacion.lote_perdido \
                             not in self.lotes_descargados:
                         print(
@@ -514,5 +515,5 @@ class Planta:
 
         print('FIN DE LA SIMULACIÓN.')
         print()
-        print('--------------------------------------------------')
+        print('-------------------------')
         print()

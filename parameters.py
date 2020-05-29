@@ -18,11 +18,11 @@ CONSIDERACIONES:
 - No se hace diferencia entre híbridos GMO y No-GMO.
 '''
 
-cantidad_dias_simulacion = 28  # días
+cantidad_dias_simulacion = 13  # días
 
 duracion_turno = 14  # horas
 
-tasa_llegada = 90/duracion_turno  # llegadas/hora
+tasa_llegada = 36/duracion_turno  # llegadas/hora
 
 carga_minima = 10.5  # toneladas
 carga_maxima = 21  # toneladas
