@@ -18,11 +18,11 @@ CONSIDERACIONES:
 - No se hace diferencia entre híbridos GMO y No-GMO.
 '''
 
-cantidad_dias_simulacion = 28  # días
+cantidad_dias_simulacion = 7  # días
 
 duracion_turno = 14  # horas
 
-tasa_llegada = 54/duracion_turno  # llegadas/hora
+tasa_llegada = 1800/duracion_turno  # llegadas/hora
 
 carga_minima = 10.5  # toneladas
 carga_maxima = 21  # toneladas
@@ -56,7 +56,7 @@ velocidad_sorting_manual = 4  # toneladas/hora
 '''
 Cambio velocidad secado para debuggear.
 '''
-velocidad_secado = 0.025  # unidades/hora
+velocidad_secado = 0.0025  # unidades/hora
 velocidad_desgrane = 25  # toneladas/hora
 
 '''

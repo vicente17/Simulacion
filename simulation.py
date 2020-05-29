@@ -371,7 +371,9 @@ class Planta:
                 '''
 
                 if evento_cierre_modulo is not None:
-                    self.modulos_secado_ocupados += 1
+                    if evento_cierre_modulo.tipo != 'perdida_carga':
+                        self.modulos_secado_ocupados += 1
+                    print(f'Módulos ocupados: {self.modulos_secado_ocupados}')
                     self.lista_eventos.add(evento_cierre_modulo)
 
             if evento_simulacion.tipo == 'comienza_secado_por_tiempo' \
@@ -441,8 +443,6 @@ class Planta:
                       f'Línea({evento_termina_desgrane.desgrane})] a la lista '
                       f'de eventos. Desgrane terminará en T = '
                       f'{evento_termina_desgrane.tiempo}.')
-
-                #print(f'GMO: Lote -> {lote.gmo}, Línea -> {self.desgrane.lineas[l].gmo}')
 
                 self.lineas_desgrane_ocupadas += 1
 
