@@ -18,11 +18,11 @@ CONSIDERACIONES:
 - No se hace diferencia entre híbridos GMO y No-GMO.
 '''
 
-cantidad_dias_simulacion = 28  # días
+cantidad_dias_simulacion = 14  # días
 
 duracion_turno = 14  # horas
 
-tasa_llegada = 90/duracion_turno  # llegadas/hora
+tasa_llegada = 108/duracion_turno  # llegadas/hora
 
 carga_minima = 10.5  # toneladas
 carga_maxima = 21  # toneladas
@@ -35,6 +35,8 @@ probabilidad_gmo = 0.5
 
 tipos_hibrido_minimo = 6  # unidades
 tipos_hibrido_maximo = 12  # unidades
+
+tolerancia_espera_cola = 12  # horas
 
 tiempo_limpieza_descarga_low = 20/60  # horas
 tiempo_limpieza_descarga_mid = 30/60  # horas

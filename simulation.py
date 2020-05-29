@@ -15,6 +15,7 @@ class Planta:
         self.desgrane = Desgrane()
 
         self.hibridos_procesados = defaultdict(int)
+        self.lotes_descargados = set()
 
         '''
         Medidas de desempeño.
@@ -23,6 +24,7 @@ class Planta:
         self.toneladas_procesadas = 0
         self.carga_recibida = 0
         self.carga_perdida = 0
+        self.carga_perdida_espera = 0
         self.carga_perdida_sorting = 0
         self.carga_perdida_secado = 0
         self.cantidad_camiones = 0
@@ -45,6 +47,13 @@ class Planta:
         return Evento((self.reloj//24)*24 + 24, None, 'siguiente_dia')
 
     '''
+    Método que retorna un evento de pérdida por exceso de tiempo en la cola.
+    '''
+    def perdida_por_espera(self, clock, lote):
+        return Evento(clock + tolerancia_espera_cola,
+                      lote, 'perdida_carga', lote_perdido=lote.id)
+
+    '''
     Método que resetea las medidas de desempeño de la simulación.
     '''
     def resetear_estadisticas(self):
@@ -60,7 +69,42 @@ class Planta:
     Método que muestra los resultados de la simulacion.
     '''
     def mostrar_estadisticas(self):
-        pass
+        dias = self.reloj / 24
+
+        print(f'Tons recibidas: {self.carga_recibida:.3f}')
+        print(f'Tons procesadas: {self.toneladas_procesadas:.3f}')
+        print(f'Tons perdidas en cola: {self.carga_perdida_espera:.3f}')
+        print(f'Tons perdidas en sorting: {self.carga_perdida_sorting:.3f}')
+        print(f'Tons perdidas en secado: {self.carga_perdida_secado:.3f}')
+        print(f'Tons totales perdidas: {self.carga_perdida:.3f}')
+        tons_en_proceso = self.carga_recibida - self.carga_perdida - \
+                          self.toneladas_procesadas
+        if tons_en_proceso < 0:
+            tons_en_proceso = 0
+        print(f'Tons en proceso: '
+              f'{tons_en_proceso:.3f}')
+        print(f'Camiones recibidos: {self.cantidad_camiones}')
+        tipos_hibrido = list(self.hibridos_procesados.keys())
+        print(f'Cantidad de tipos de híbrido recibidos: {len(tipos_hibrido)}')
+
+        print()
+
+        print(f'Tiempo de procesamiento promedio: '
+              f'{(self.tiempo_procesamiento / self.lotes_procesados):.3f}')
+        print(f'Tons promedio recibidas por día: '
+              f'{(self.carga_recibida / dias):.3f}')
+        print(f'Tons promedio procesadas por día: '
+              f'{(self.toneladas_procesadas / dias):.3f}')
+        print(f'Tons promedio perdidas en cola por día: '
+              f'{(self.carga_perdida_espera / dias):.3f}')
+        print(f'Tons promedio perdidas en sorting por día: '
+              f'{(self.carga_perdida_sorting / dias):.3f}')
+        print(f'Tons promedio perdidas en secado por día: '
+              f'{(self.carga_perdida_secado / dias):.3f}')
+        print(f'Tons totales promedio perdidas por día: '
+              f'{(self.carga_perdida / dias):.3f}')
+        print(f'Tiempo promedio de espera camiones: '
+              f'{(self.tiempo_espera / self.camiones_descargados):.3f}')
 
     '''
     Método que echa a correr la simulación.
@@ -72,9 +116,6 @@ class Planta:
         dia_actual = 0
         self.lista_eventos.add(siguiente_dia)
 
-        print()
-        print('--------------------------------------------------')
-        print()
         print('INICIO DE LA SIMULACIÓN.')
         print()
         print('--------------------------------------------------')
@@ -135,6 +176,14 @@ class Planta:
                 self.carga_recibida += lote.carga
                 self.lotes_recibidos += 1
 
+                evento_perdida = self.perdida_por_espera(self.reloj, lote)
+                self.lista_eventos.add(evento_perdida)
+                print(f'Agregando evento [pérdida de carga de Lote({lote.id})] '
+                      f'a la lista de eventos. Pérdida será efectiva en T = '
+                      f'{evento_perdida.tiempo} sólo si'
+                      f' el camión espera más de {tolerancia_espera_cola} horas'
+                      f' en la cola.')
+
                 if self.descarga.lineas_desocupadas() and \
                    self.sorting.lineas_desocupadas():
                     evento_comienza_descarga = \
@@ -147,8 +196,6 @@ class Planta:
                               f'{evento_comienza_descarga.tiempo}.')
                         self.lista_eventos.add(evento_comienza_descarga)
 
-                #cola = [c for c in self.descarga.cola]
-                #print(f'Cola camiones: {cola}')
                 print(f'Largo cola: {len(self.descarga.cola)}')
 
                 evento_sgte_llegada = self.llegada.entregar_lote(self.reloj)
@@ -159,18 +206,21 @@ class Planta:
                     self.lista_eventos.add(evento_sgte_llegada)
 
             if evento_simulacion.tipo == 'comienza_descarga':
+                '''
                 print(f'Lineas desocupadas antes: '
                       f'{self.descarga.lineas_desocupadas()}')
                 print(f'Híbridos pasando antes: '
                       f'{self.descarga.hibridos_pasando()}')
+                '''
 
                 evento_fin_descarga =\
                     self.descarga.comenzar_descarga(self.reloj)
-
+                '''
                 print(f'Lineas desocupadas después: '
                       f'{self.descarga.lineas_desocupadas()}')
                 print(f'Híbridos pasando después: '
                       f'{self.descarga.hibridos_pasando()}')
+                '''
 
                 if evento_fin_descarga is not None:
                     id = evento_fin_descarga.lote.id
@@ -178,8 +228,8 @@ class Planta:
                           f'{evento_fin_descarga.lote.id}) por línea '
                           f'{evento_fin_descarga.descarga}.')
 
-                    #cola = [c for c in self.descarga.cola]
-                    #print(f'Cola camiones: {cola}')
+                    self.lotes_descargados.add(id)
+
                     print(f'Largo cola: {len(self.descarga.cola)}')
 
                     print(f'Agregando evento [terminar descarga de Lote({id})]'
@@ -368,25 +418,42 @@ class Planta:
 
             if evento_simulacion.tipo == 'perdida_carga':
                 lote = evento_simulacion.lote
-                print(f'Se pierden {lote.carga} toneladas de híbrido de '
-                      f'Lote({lote.id}) de tipo {lote.tipo} por no existir ',
-                      end='')
 
-                self.carga_perdida += lote.carga
+                if evento_simulacion.lote_perdido is not None:
+                    print(f'Cola: {self.descarga.cola}')
+                    print(f'Camiones: {self.camiones_descargados}')
+                    print(f'Hibridos descargados: {self.lotes_descargados}')
+                    if evento_simulacion.lote_perdido \
+                            not in self.lotes_descargados:
+                        print(
+                            f'Se pierden {lote.carga} toneladas de híbrido de '
+                            f'Lote({lote.id}) por exceder tiempo de espera en '
+                            f'la cola.')
+                        self.carga_perdida += lote.carga
+                        self.carga_perdida_espera += lote.carga
+                        self.descarga.desechar_lote_esperando(lote.id)
+                    else:
+                        print(f'Lote({lote.id}) ya fue descargado.')
 
                 if evento_simulacion.sorting:
-                    print('líneas desocupadas en el área de sorting.')
+                    print(
+                        f'Se pierden {lote.carga} toneladas de híbrido de '
+                        f'Lote({lote.id}) de tipo {lote.tipo} por '
+                        f'no existir líneas desocupadas en el área de sorting.')
                     print(f'Lineas de sorting desocupadas: '
                           f'{self.sorting.lineas_desocupadas()}')
 
                     self.carga_perdida_sorting += lote.carga
+                    self.carga_perdida += lote.carga
 
-                elif evento_simulacion.secado:
-                    print('no existir módulos disponibles en el área de secado.'
+                if evento_simulacion.secado:
+                    print(
+                        f'Se pierden {lote.carga} toneladas de híbrido de '
+                        f'Lote({lote.id}) de tipo {lote.tipo} por '
+                        f'no existir módulos disponibles en el área de secado.'
                           )
                     self.carga_perdida_secado += lote.carga
-
-
+                    self.carga_perdida += lote.carga
 
             tiempo_anterior = self.reloj
 
@@ -398,33 +465,3 @@ class Planta:
         print()
         print('--------------------------------------------------')
         print()
-
-        dias = tiempo_simulacion/24
-
-        print(f'Tons recibidas: {self.carga_recibida}')
-        print(f'Tons procesadas: {self.toneladas_procesadas}')
-        print(f'Tons perdidas en sorting: {self.carga_perdida_sorting}')
-        print(f'Tons perdidas en secado: {self.carga_perdida_secado}')
-        print(f'Tons totales perdidas: {self.carga_perdida}')
-        print(f'Tons en proceso: '
-        f'{self.carga_recibida-self.carga_perdida-self.toneladas_procesadas}')
-        print(f'Camiones recibidos: {self.cantidad_camiones}')
-        tipos_hibrido = list(self.hibridos_procesados.keys())
-        print(f'Cantidad de tipos de híbrido recibidos: {len(tipos_hibrido)}')
-
-        print()
-
-        print(f'Tiempo de procesamiento promedio: '
-              f'{self.tiempo_procesamiento/self.lotes_procesados}')
-        print(f'Tons promedio recibidas por día: '
-              f'{self.carga_recibida / dias}')
-        print(f'Tons promedio procesadas por día: '
-              f'{self.toneladas_procesadas / dias}')
-        print(f'Tons promedio perdidas en sorting por día: '
-              f'{self.carga_perdida_sorting / dias}')
-        print(f'Tons promedio perdidas en secado por día: '
-              f'{self.carga_perdida_secado / dias}')
-        print(f'Tons promedio perdidas por día: '
-              f'{self.carga_perdida / dias}')
-        print(f'Tiempo promedio de espera camiones: '
-              f'{self.tiempo_espera / self.camiones_descargados}')

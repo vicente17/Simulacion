@@ -9,7 +9,7 @@ Clase que representa un evento que ocurre en la simulación.
 class Evento:
     def __init__(self, tiempo, lote, tipo, descarga=None, sorting=None,
                  secador=None, modulo=None, desgrane=None, secado=None,
-                 tiempo_limpieza=None):
+                 tiempo_limpieza=None, lote_perdido=None):
 
         self.tiempo = tiempo
         self.lote = lote
@@ -22,6 +22,7 @@ class Evento:
         self.desgrane = desgrane
         self.secado = secado
         self.tiempo_limpieza = tiempo_limpieza
+        self.lote_perdido = lote_perdido
 
 '''
 Entidad que representa un lote de maíz.
@@ -296,14 +297,32 @@ class Descarga:
         return None
         #raise ValueError('Todas las líneas están ocupadas.')
 
+    '''
+    Genera un evento de comienzo de descarga.
+    '''
     def generar_evento_comienzo_descarga(self, clock, lote=None):
         return Evento(clock, lote, 'comienza_descarga',)
+
+    def desechar_lote_esperando(self, id_lote):
+        self.cola = list(self.cola)
+        contador = 0
+        for lote in self.cola:
+            if lote.id == id_lote:
+                break
+            contador += 1
+        desecho = self.cola.pop(contador)
+        if desecho.id != id_lote:
+            raise ValueError('Popeando lote de id incorrecto.')
+        self.cola = deque(self.cola)
 
     '''
     Comienza la descarga de un camión. Retorna un Evento('termina_descarga').
     '''
     def comenzar_descarga(self, clock):
         if not len(self.cola):
+            return None
+
+        if not self.lineas_desocupadas():
             return None
 
         lote, n = self.asignar_lote_siguiente()
@@ -603,8 +622,8 @@ class Secado:
                             capacidad_modulos_secador_4)
         secador_5 = Secador(False, cantidad_modulos_secador_5,
                             capacidad_modulos_secador_5)
-        return {1: secador_1, 2: secador_2, 3: secador_3, 4: secador_4,
-                5: secador_5}
+        return {1: secador_2, 2: secador_3, 3: secador_4, 4: secador_5,
+                5: secador_1}
 
     '''
     Retorna tupla (n_secador, m_módulo) según dónde deba dirigirse el lote. Si
