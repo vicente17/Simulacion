@@ -13,11 +13,11 @@ CONSIDERACIONES:
   descarga o llega un camión y además existe una línea de sorting disponible.
 '''
 
-cantidad_dias_simulacion = 7  # días
+cantidad_dias_simulacion = 60  # días
 
 duracion_turno = 14  # horas
 
-tasa_llegada = 36/duracion_turno  # llegadas/hora
+tasa_llegada = 18/duracion_turno  # llegadas/hora
 
 carga_minima = 10.5  # toneladas
 carga_maxima = 21  # toneladas
@@ -55,21 +55,14 @@ velocidad_descarga = 20  # toneladas/hora
 velocidad_sorting_automatico = 12  # toneladas/hora
 velocidad_sorting_manual = 4  # toneladas/hora
 
-'''
-Cambio velocidad secado para debuggear.
-'''
 velocidad_secado = 0.0025  # unidades/hora
 velocidad_desgrane = 25  # toneladas/hora
 
-'''
-Cambio las unidades para debuggear
-'''
-
-cantidad_modulos_secador_1 = 5  # unidades
-cantidad_modulos_secador_2 = 5  # unidades
-cantidad_modulos_secador_3 = 5  # unidades
-cantidad_modulos_secador_4 = 5  # unidades
-cantidad_modulos_secador_5 = 5  # unidades
+cantidad_modulos_secador_1 = 10  # unidades
+cantidad_modulos_secador_2 = 10  # unidades
+cantidad_modulos_secador_3 = 10  # unidades
+cantidad_modulos_secador_4 = 10  # unidades
+cantidad_modulos_secador_5 = 10  # unidades
 
 capacidad_modulos_secador_1 = 1300  # m^3
 capacidad_modulos_secador_2 = 2000  # m^3
@@ -80,3 +73,5 @@ capacidad_modulos_secador_5 = 2280  # m^3
 toneladas_cierre_modulo = 21  # toneladas
 horas_cierre_modulo = 7  # horas
 humedad_final_secado = 0.125
+
+ocupacion_arriendo = 0.9

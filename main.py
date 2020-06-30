@@ -15,7 +15,7 @@ if semillas:
 planta = Planta()
 print()
 
-printear_pasos = True
+printear_pasos = False
 if not printear_pasos:
     sys.stdout = open(os.devnull, 'w')  # bloqueamos prints
 
