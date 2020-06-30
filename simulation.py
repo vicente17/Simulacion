@@ -47,6 +47,10 @@ class Planta:
         self.lineas_desgrane_ocupadas = 0
         self.ocupacion_desgrane = 0
 
+        self.cantidad_lotes_por_mezcla = 0
+        self.cuenta_lotes_mezcla = 0
+
+        self.excede_maximo = 0
 
         '''
         Lista que permanece siempre ordenada decrecientemente según el atributo
@@ -96,6 +100,13 @@ class Planta:
         self.ocupacion_secado += tiempo * self.modulos_secado_ocupados
         self.ocupacion_desgrane += tiempo * self.lineas_desgrane_ocupadas
         self.largo_cola += tiempo * len(self.descarga.cola)
+
+        ctd_modulos_secado = cantidad_modulos_secador_1 + cantidad_modulos_secador_2 + \
+                             cantidad_modulos_secador_3 + \
+                             cantidad_modulos_secador_4 + cantidad_modulos_secador_5
+        if self.modulos_secado_ocupados >= ocupacion_arriendo * ctd_modulos_secado:
+            self.excede_maximo += tiempo
+
 
     '''
     Método que muestra los resultados de la simulacion.
@@ -147,11 +158,11 @@ class Planta:
 
         ctd_lineas_descarga = len(self.descarga.lineas)
         print(f'Ocupación de líneas de descarga: '
-              f'{self.ocupacion_descarga/(self.reloj * ctd_lineas_descarga)}')
+              f'{(self.ocupacion_descarga/(self.reloj * ctd_lineas_descarga)) * 24 / duracion_turno}')
 
         ctd_lineas_sorting = len(self.sorting.lineas)
         print(f'Ocupación de líneas de sorting: '
-              f'{self.ocupacion_sorting/(self.reloj * ctd_lineas_sorting)}')
+              f'{(self.ocupacion_sorting/(self.reloj * ctd_lineas_sorting)) * 24 / duracion_turno}')
 
         ctd_modulos_secado = sum([len(secador.modulos) for
                                   secador in self.secado.secadores.values()])
@@ -162,6 +173,17 @@ class Planta:
         ctd_lineas_desgrane = len(self.desgrane.lineas)
         print(f'Ocupación de líneas de desgrane: '
               f'{self.ocupacion_desgrane/(self.reloj * ctd_lineas_desgrane)}')
+
+        try:
+            print(f'Cantidad promedio de lotes por LoteMezcla: '
+                  f'{self.cantidad_lotes_por_mezcla / self.cuenta_lotes_mezcla}')
+        except ZeroDivisionError:
+            print(f'Cantidad promedio de lotes por LoteMezcla no se puede'
+                  f'calcular: ningún lote ha sido secado.. ')
+
+        print(f'Tiempo promedio en que se excede máxima ocupación'
+              f'(de {ocupacion_arriendo}) en secado: {self.excede_maximo/self.reloj}')
+
 
     '''
     Método que echa a correr la simulación.
@@ -425,6 +447,11 @@ class Planta:
                 n, m = evento_simulacion.secador, evento_simulacion.modulo
                 lote_mezclado =\
                     self.secado.secadores[n].modulos[m].lote_mezclado
+
+                cantidad_lotes = len(lote_mezclado.componentes)
+                self.cantidad_lotes_por_mezcla += cantidad_lotes
+                self.cuenta_lotes_mezcla += 1
+
                 if lote_mezclado is None:
                     raise ValueError(f'No hay carga en Módulo({m}) '
                                      f'de Secador({n}).\n')
