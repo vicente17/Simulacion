@@ -104,6 +104,7 @@ class Planta:
         ctd_modulos_secado = cantidad_modulos_secador_1 + cantidad_modulos_secador_2 + \
                              cantidad_modulos_secador_3 + \
                              cantidad_modulos_secador_4 + cantidad_modulos_secador_5
+
         if self.modulos_secado_ocupados >= ocupacion_arriendo * ctd_modulos_secado:
             self.excede_maximo += tiempo
 
