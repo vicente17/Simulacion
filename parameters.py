@@ -58,11 +58,11 @@ velocidad_sorting_manual = 4  # toneladas/hora
 velocidad_secado = 0.0025  # unidades/hora
 velocidad_desgrane = 25  # toneladas/hora
 
-cantidad_modulos_secador_1 = 10  # unidades
-cantidad_modulos_secador_2 = 10  # unidades
-cantidad_modulos_secador_3 = 10  # unidades
-cantidad_modulos_secador_4 = 10  # unidades
-cantidad_modulos_secador_5 = 10  # unidades
+cantidad_modulos_secador_1 = 14  # unidades
+cantidad_modulos_secador_2 = 20  # unidades
+cantidad_modulos_secador_3 = 21  # unidades
+cantidad_modulos_secador_4 = 24  # unidades
+cantidad_modulos_secador_5 = 24  # unidades
 
 capacidad_modulos_secador_1 = 1300  # m^3
 capacidad_modulos_secador_2 = 2000  # m^3
@@ -71,7 +71,7 @@ capacidad_modulos_secador_4 = 2280  # m^3
 capacidad_modulos_secador_5 = 2280  # m^3
 
 toneladas_cierre_modulo = 21  # toneladas
-horas_cierre_modulo = 7  # horas
+horas_cierre_modulo = 0  # horas
 humedad_final_secado = 0.125
 
 ocupacion_arriendo = 0.9

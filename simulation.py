@@ -159,11 +159,11 @@ class Planta:
 
         ctd_lineas_descarga = len(self.descarga.lineas)
         print(f'Ocupación de líneas de descarga: '
-              f'{(self.ocupacion_descarga/(self.reloj * ctd_lineas_descarga)) * 24 / duracion_turno}')
+              f'{(self.ocupacion_descarga/(self.reloj* 6/7 * ctd_lineas_descarga)) * 24 / duracion_turno}')
 
         ctd_lineas_sorting = len(self.sorting.lineas)
         print(f'Ocupación de líneas de sorting: '
-              f'{(self.ocupacion_sorting/(self.reloj * ctd_lineas_sorting)) * 24 / duracion_turno}')
+              f'{(self.ocupacion_sorting/(self.reloj * 6/7 * ctd_lineas_sorting)) * 24 / duracion_turno}')
 
         ctd_modulos_secado = sum([len(secador.modulos) for
                                   secador in self.secado.secadores.values()])
@@ -173,7 +173,7 @@ class Planta:
 
         ctd_lineas_desgrane = len(self.desgrane.lineas)
         print(f'Ocupación de líneas de desgrane: '
-              f'{self.ocupacion_desgrane/(self.reloj * ctd_lineas_desgrane)}')
+              f'{self.ocupacion_desgrane/(self.reloj * 6/7* ctd_lineas_desgrane)}')
 
         try:
             print(f'Cantidad promedio de lotes por LoteMezcla: '
