@@ -52,6 +52,10 @@ class Planta:
 
         self.excede_maximo = 0
 
+        self.hibridos_diarios = defaultdict(set)
+
+
+
         '''
         Lista que permanece siempre ordenada decrecientemente según el atributo
         tiempo de la clase Evento. Para agregar un elemento, lista.add(elem).
@@ -113,7 +117,7 @@ class Planta:
     Método que muestra los resultados de la simulacion.
     '''
     def mostrar_estadisticas(self):
-        dias = self.reloj / 24
+        dias = self.reloj // 24
 
         print(f'Tons recibidas: {self.carga_recibida:.3f}')
         print(f'Tons procesadas: {self.toneladas_procesadas:.3f}')
@@ -184,6 +188,28 @@ class Planta:
 
         print(f'Tiempo promedio en que se excede máxima ocupación'
               f'(de {ocupacion_arriendo}) en secado: {self.excede_maximo/self.reloj}')
+
+        distribucion_tipos_hibrido = defaultdict(int)
+        distribucion_hibridos_diarios = defaultdict(int)
+
+        prom_hibridos_diarios = 0
+        c = 0
+        for s in self.hibridos_diarios.values():
+            prom_hibridos_diarios += len(s)
+            distribucion_hibridos_diarios[len(s)] += 1
+            for tipo in s:
+                distribucion_tipos_hibrido[tipo] += 1
+
+            c += 1
+
+        print(f'Cantidad promedio de híbridos que llegan cada día: '
+              f'{prom_hibridos_diarios / c}')
+
+        print(f'Distribución cantidad de tipos de híbrido que llegan (por día): '
+              f'{distribucion_hibridos_diarios}')
+
+        print(f'Distribución tipos de híbrido que llegan (en total): '
+              f'{distribucion_tipos_hibrido}')
 
 
     '''
@@ -257,6 +283,8 @@ class Planta:
                       f'Tiempo = {lote.tiempo_llegada})')
                 self.cantidad_camiones += 1
                 self.descarga.recibir_lote(lote)
+
+                self.hibridos_diarios[dia_actual].add(lote.tipo)
 
                 self.carga_recibida += lote.carga
                 self.lotes_recibidos += 1

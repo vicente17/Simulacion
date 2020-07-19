@@ -29,7 +29,7 @@ if not printear_pasos:
 
 final = time()
 
-output = True
+output = False
 path_output = 'resultados.txt'
 if output:
     orig_stdout = sys.stdout
